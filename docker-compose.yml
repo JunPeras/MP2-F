@@ -1,0 +1,21 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    container_name: react-app-dev
+
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:5000"
+    container_name: react-app-prod
