@@ -103,7 +103,7 @@ export default function CompleteProfilePage() {
   const [fieldError, setFieldError] = useState("");
   const [generalError, setGeneralError] = useState("");
   const navigate = useNavigate();
-  const { user, loading, setProfileComplete, logout } = useAuthStore();
+  const { loading, setProfileComplete, logout } = useAuthStore();
 
   const { checking, available, error: usernameError } = useUsernameAvailability(username);
 

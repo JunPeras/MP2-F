@@ -1,5 +1,5 @@
 services:
-  dev:
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -10,12 +10,30 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-    container_name: react-app-dev
+    container_name: mp2-frontend
+    networks:
+      - app-network
+    depends_on:
+      - backend
 
-  prod:
+  backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../MP2-B
+      dockerfile: Dockerfile.dev
     ports:
-      - "8081:5000"
-    container_name: react-app-prod
+      - "3000:3000"
+    volumes:
+      - ../MP2-B:/app
+      - /app/node_modules
+    env_file:
+      - ../MP2-B/.env
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    container_name: mp2-backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
