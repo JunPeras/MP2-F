@@ -11,8 +11,18 @@ import {
 import { auth, googleProvider } from "../config/firebase";
 import { apiFetch, apiPost } from "../lib/api";
 
+export interface CustomUser extends User {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  title?: string;
+  bio?: string;
+  phone?: string;
+  location?: string;
+}
+
 interface AuthState {
-  user: User | null;
+  user: CustomUser | null;
   profileComplete: boolean;
   loading: boolean;
   initialized: boolean;

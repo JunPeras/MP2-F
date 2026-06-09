@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
+import CreateRoomForm from "../components/CreateRoomForm";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const styles = `
@@ -179,6 +180,38 @@ const styles = `
     color: #888; cursor: pointer; transition: background 0.2s;
   }
   .sr-modal-cancel:hover { background: #1a1a1a; }
+
+  /* ── Feedback ── */
+  .sr-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 300;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    animation: srSlideUp 0.3s ease;
+  }
+  .sr-toast.success {
+    background: #112a14;
+    border: 1px solid #2a5c2a;
+    color: #4caf50;
+  }
+  .sr-toast.error {
+    background: #2a1414;
+    border: 1px solid #5c2a2a;
+    color: #e05454;
+  }
+
+  @keyframes srSlideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
 `;
 
 const BookOpenIcon = () => (
@@ -202,11 +235,6 @@ const PlusIcon = () => (
   </svg>
 );
 
-// Mock rooms data
-const MOCK_ROOMS = [
-  { id: "1", name: "Matematicas Avanzadas", description: "Grupo de estudio para cálculo integral y diferencial", members: 8, maxMembers: 12, code: "MAT-2024", creator: "María García" },
-];
-
 export default function DashboardPage() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -215,7 +243,7 @@ export default function DashboardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [newRoom, setNewRoom] = useState({ name: "", description: "" });
+  const [rooms, setRooms] = useState<any[]>([]);
 
   const initials = user?.displayName
     ? user.displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
@@ -223,7 +251,40 @@ export default function DashboardPage() {
 
   const firstName = user?.displayName?.split(" ")[0] || "Usuario";
 
-  const filteredRooms = MOCK_ROOMS.filter(
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const handleRoomCreatedSuccess = (roomData: { name: string; description: string }) => {
+    try {
+      const newRoomObj = {
+        id: Date.now().toString(),
+        name: roomData.name,
+        description: roomData.description || "Sin descripción",
+        members: 1,
+        maxMembers: 10,
+        code: "SR-" + Math.floor(1000 + Math.random() * 9000),
+        creator: firstName + " (Tú)"
+      };
+
+      setRooms([newRoomObj, ...rooms]);
+      setShowCreate(false);
+
+      setNotification({
+        type: "success",
+        message: "¡Sala creada exitosamente!"
+      });
+
+      setTimeout(() => setNotification(null), 3000);
+
+    } catch (err) {
+      setNotification({
+        type: "error",
+        message: "No pudimos crear la sala en este momento. Por favor, intenta más tarde."
+      });
+      setTimeout(() => setNotification(null), 3500);
+    }
+  };
+
+  const filteredRooms = rooms.filter(
     (r) =>
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.description.toLowerCase().includes(search.toLowerCase())
@@ -276,29 +337,54 @@ export default function DashboardPage() {
             </button>
           </div>
 
+          {/* Salas de estudio */}
           <div className="sr-section-title">Salas de estudio</div>
 
-          <div className="sr-rooms-grid">
-            {filteredRooms.map((room) => (
-              <div key={room.id} className="sr-room-card">
-                <div className="sr-room-name">{room.name}</div>
-                <div className="sr-room-desc">{room.description}</div>
-                <div className="sr-room-meta">
-                  <span className="sr-room-members">{room.members}/{room.maxMembers}</span>
-                  <span className="sr-room-code"># {room.code}</span>
+          {rooms.length === 0 ? (
+            <div style={{
+              background: "#111",
+              border: "1px solid #1e1e1e",
+              borderRadius: "12px",
+              padding: "48px 32px",
+              textAlign: "center",
+              maxWidth: "580px",
+              margin: "32px auto 0"
+            }}>
+              <p style={{ color: "#aaa", fontSize: "15px", lineHeight: "1.6", margin: 0 }}>
+                Crea tu primera sala de estudio para comenzar a colaborar con otros estudiantes. Aquí podrás visualizar y administrar todas tus salas.
+              </p>
+              <button 
+                className="sr-btn-primary" 
+                style={{ marginTop: "24px", display: "inline-flex", gap: "7px" }}
+                onClick={() => setShowCreate(true)}
+              >
+                <PlusIcon /> Crear mi primera sala
+              </button>
+            </div>
+          ) : (
+            <div className="sr-rooms-grid">
+              {filteredRooms.map((room) => (
+                <div key={room.id} className="sr-room-card">
+                  <div className="sr-room-name">{room.name}</div>
+                  <div className="sr-room-desc">{room.description}</div>
+                  <div className="sr-room-meta">
+                    <span className="sr-room-members">{room.members}/{room.maxMembers}</span>
+                    <span className="sr-room-code"># {room.code}</span>
+                  </div>
+                  <div className="sr-room-footer">
+                    <span className="sr-room-creator">Creada por {room.creator}</span>
+                    <button className="sr-btn-enter" onClick={() => navigate(`/sala/${room.id}`)}>
+                      Entrar
+                    </button>
+                  </div>
                 </div>
-                <div className="sr-room-footer">
-                  <span className="sr-room-creator">Creada por {room.creator}</span>
-                  <button className="sr-btn-enter" onClick={() => navigate(`/sala/${room.id}`)}>
-                    Entrar
-                  </button>
-                </div>
-              </div>
-            ))}
-            {filteredRooms.length === 0 && (
-              <p style={{ color: "#555", fontSize: 14 }}>No se encontraron salas.</p>
-            )}
-          </div>
+              ))}
+              {filteredRooms.length === 0 && (
+                <p style={{ color: "#555", fontSize: 14 }}>No se encontraron salas que coincidan con la búsqueda.</p>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -325,37 +411,21 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Create Modal */}
       {showCreate && (
         <div className="sr-modal-backdrop" onClick={() => setShowCreate(false)}>
-          <div className="sr-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="sr-modal-title">Crear sala</div>
-            <div className="sr-modal-sub">Configura tu nueva sala de estudio</div>
-            <div className="sr-modal-field">
-              <label className="sr-modal-label">Nombre de la sala</label>
-              <input
-                className="sr-modal-input"
-                placeholder="Ej: Cálculo diferencial"
-                value={newRoom.name}
-                onChange={(e) => setNewRoom((p) => ({ ...p, name: e.target.value }))}
-              />
-            </div>
-            <div className="sr-modal-field">
-              <label className="sr-modal-label">Descripción</label>
-              <input
-                className="sr-modal-input"
-                placeholder="Describe el tema de la sala"
-                value={newRoom.description}
-                onChange={(e) => setNewRoom((p) => ({ ...p, description: e.target.value }))}
-              />
-            </div>
-            <div className="sr-modal-actions">
-              <button className="sr-modal-cancel" onClick={() => setShowCreate(false)}>Cancelar</button>
-              <button className="sr-btn-primary" onClick={() => setShowCreate(false)}>Crear</button>
-            </div>
-          </div>
+          <CreateRoomForm 
+            onSuccess={handleRoomCreatedSuccess} 
+            onCancel={() => setShowCreate(false)} 
+          />
         </div>
       )}
+
+      {notification && (
+        <div className={`sr-toast ${notification.type}`}>
+          {notification.type === "success" ? "✅" : "❌"} {notification.message}
+        </div>
+      )}
+      
     </>
   );
 }
