@@ -151,16 +151,48 @@ const styles = `
     color: #fff; font-weight: 600; font-family: 'Outfit', sans-serif; cursor: pointer;
   }
   .sr-confirm-delete-btn:hover { background: #d32f2f; }
+
+  /* ── Feedback ── */
+  .sr-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 300;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    animation: srSlideUp 0.3s ease;
+  }
+  .sr-toast.success {
+    background: #112a14;
+    border: 1px solid #2a5c2a;
+    color: #4caf50;
+  }
+  .sr-toast.error {
+    background: #2a1414;
+    border: 1px solid #5c2a2a;
+    color: #e05454;
+  }
+
+  @keyframes srSlideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
 `;
 
 const BookOpenIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
   </svg>
 );
 const ArrowLeftIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
+    <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
   </svg>
 );
 
@@ -169,7 +201,7 @@ interface ProfileData {
   lastName: string;
   username: string;
   email: string;
-  title: string;    
+  title: string;
   bio: string;
   phone: string;
   location: string;
@@ -180,17 +212,21 @@ export default function ProfilePage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  const authUser = user as any;
-
   const [editing, setEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const [toast, setToast] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const [profile, setProfile] = useState<ProfileData>({
-    firstName: authUser?.firstName || "Andrea",
-    lastName: authUser?.lastName || "Solarte",
-    username: authUser?.username || "yeye",
+    firstName: user?.displayName?.split(" ")[0] || "Andrea",
+    lastName: user?.displayName?.split(" ")[1] || "Solarte",
+    username: user?.username || "yeye",
     email: user?.email || "yeye@univalle.edu.co",
-    title: "", 
+    title: "",
     bio: "",
     phone: "",
     location: "",
@@ -200,8 +236,22 @@ export default function ProfilePage() {
   const [draft, setDraft] = useState<ProfileData>(profile);
   const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; username?: string }>({});
 
+  const showToast = (
+    type: "success" | "error",
+    message: string
+  ) => {
+    setToast({ type, message });
+
+    setTimeout(() => {
+      setToast(null);
+    }, 3000);
+  };
+
   const fullDisplayName = `${profile.firstName} ${profile.lastName}`.trim();
   const initials = ((profile.firstName[0] || "") + (profile.lastName[0] || "")).toUpperCase();
+
+  const hasUnsavedChanges =
+    JSON.stringify(profile) !== JSON.stringify(draft);
 
   // Mock stats
   const stats = [
@@ -216,231 +266,299 @@ export default function ProfilePage() {
 
     if (!draft.firstName.trim()) currentErrors.firstName = "El nombre es obligatorio.";
     if (!draft.lastName.trim()) currentErrors.lastName = "El apellido es obligatorio.";
-    
+
     if (draft.username.trim().length < 3) {
       currentErrors.username = "El username debe tener al menos 3 caracteres.";
     }
-    
+
     if (draft.username.toLowerCase() === "ocupado") {
       currentErrors.username = "Este nombre de usuario ya está siendo utilizado.";
     }
 
     if (Object.keys(currentErrors).length > 0) {
       setErrors(currentErrors);
-      return;
+
+      showToast(
+        "error",
+        "Por favor corrige los campos marcados."
+      );
+
+      return true;
+    }
+
+    if (JSON.stringify(profile) === JSON.stringify(draft)) {
+      showToast(
+        "error",
+        "No se detectaron cambios para guardar."
+      );
+
+      return true;
     }
 
     setProfile(draft);
     setErrors({});
     setEditing(false);
+
+    showToast(
+      "success",
+      "Tus cambios se guardaron correctamente."
+    );
   };
 
-  return (
-    <>
-      <style>{styles}</style>
-      <div className="sr-profile">
-        <nav className="sr-nav">
-          <div className="sr-nav-left">
-            <button className="sr-back-btn" onClick={() => navigate("/dashboard")}><ArrowLeftIcon /></button>
-            <div className="sr-nav-logo">
-              <div className="sr-nav-logo-icon"><BookOpenIcon /></div>
-              <span className="sr-nav-logo-text">StudyRoom</span>
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="sr-profile">
+          <nav className="sr-nav">
+            <div className="sr-nav-left">
+              <button className="sr-back-btn" onClick={() => navigate("/dashboard")}><ArrowLeftIcon /></button>
+              <div className="sr-nav-logo">
+                <div className="sr-nav-logo-icon"><BookOpenIcon /></div>
+                <span className="sr-nav-logo-text">StudyRoom</span>
+              </div>
             </div>
-          </div>
-          <div className="sr-nav-avatar">{initials}</div>
-        </nav>
+            <div className="sr-nav-avatar">{initials}</div>
+          </nav>
 
-        <div className="sr-profile-body">
-          {/* ── Hero Card) ── */}
-          <div className="sr-hero-card">
-            <div className="sr-hero-top">
-              <div className="sr-avatar-lg">{initials}</div>
-              <div className="sr-hero-info">
-                
-                {editing ? (
-                  <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
-                    <div style={{ flex: 1 }}>
-                      <label className="sr-label">Nombre</label>
-                      <input
-                        className="sr-input"
-                        value={draft.firstName}
-                        onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))}
-                      />
-                      {errors.firstName && <span className="sr-error-text">🛑 {errors.firstName}</span>}
+          <div className="sr-profile-body">
+            {/* ── Hero Card) ── */}
+            <div className="sr-hero-card">
+              <div className="sr-hero-top">
+                <div className="sr-avatar-lg">{initials}</div>
+                <div className="sr-hero-info">
+
+                  {editing ? (
+                    <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+                      <div style={{ flex: 1 }}>
+                        <label className="sr-label">Nombre</label>
+                        <input
+                          className="sr-input"
+                          value={draft.firstName}
+                          onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))}
+                        />
+                        {errors.firstName && <span className="sr-error-text">{errors.firstName}</span>}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label className="sr-label">Apellido</label>
+                        <input
+                          className="sr-input"
+                          value={draft.lastName}
+                          onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))}
+                        />
+                        {errors.lastName && <span className="sr-error-text">{errors.lastName}</span>}
+                      </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label className="sr-label">Apellido</label>
-                      <input
-                        className="sr-input"
-                        value={draft.lastName}
-                        onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))}
-                      />
-                      {errors.lastName && <span className="sr-error-text">🛑 {errors.lastName}</span>}
+                  ) : (
+                    <div className="sr-hero-name">{fullDisplayName || "Estudiante StudyRoom"}</div>
+                  )}
+
+                  {editing ? (
+                    <div style={{ display: "flex", gap: "12px" }}>
+                      <div style={{ flex: 1 }}>
+                        <label className="sr-label">Nombre de Usuario (Username)</label>
+                        <input
+                          className="sr-input"
+                          value={draft.username}
+                          onChange={(e) => setDraft((p) => ({ ...p, username: e.target.value }))}
+                        />
+                        {errors.username && <span className="sr-error-text"> {errors.username}</span>}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label className="sr-label">Título Institucional</label>
+                        <input
+                          className="sr-input"
+                          placeholder="Ej: Estudiante de Ingeniería"
+                          value={draft.title}
+                          onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="sr-hero-name">{fullDisplayName || "Estudiante StudyRoom"}</div>
-                )}
-                
-                {editing ? (
-                  <div style={{ display: "flex", gap: "12px" }}>
-                    <div style={{ flex: 1 }}>
-                      <label className="sr-label">Nombre de Usuario (Username)</label>
-                      <input
-                        className="sr-input"
-                        value={draft.username}
-                        onChange={(e) => setDraft((p) => ({ ...p, username: e.target.value }))}
-                      />
-                      {errors.username && <span className="sr-error-text">🛑 {errors.username}</span>}
+                  ) : (
+                    <div className="sr-hero-title">
+                      {profile.title || <span className="sr-empty-placeholder">Sin título institucional definido</span>}
+                      <span className="sr-hero-username">@{profile.username}</span>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label className="sr-label">Título Institucional</label>
-                      <input
-                        className="sr-input"
-                        placeholder="Ej: Estudiante de Ingeniería"
-                        value={draft.title}
-                        onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="sr-hero-title">
-                    {profile.title || <span className="sr-empty-placeholder">Sin título institucional definido</span>} 
-                    <span className="sr-hero-username">@{profile.username}</span>
-                  </div>
+                  )}
+                </div>
+
+                {!editing && (
+                  <button className="sr-edit-btn" onClick={() => { setDraft(profile); setErrors({}); setEditing(true); }}>
+                    Editar Perfil
+                  </button>
                 )}
               </div>
-              
-              {!editing && (
-                <button className="sr-edit-btn" onClick={() => { setDraft(profile); setErrors({}); setEditing(true); }}>
-                  Editar Perfil
+
+              {/* Estadísticas */}
+              <div className="sr-stats">
+                {stats.map((s) => (
+                  <div key={s.label} className="sr-stat">
+                    <div className="sr-stat-value">{s.value}</div>
+                    <div className="sr-stat-label">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="sr-info-grid">
+
+              {/* Tarjeta: Acerca de mí */}
+              <div className="sr-info-card">
+                <div className="sr-info-card-title">Acerca de mí</div>
+                {editing ? (
+                  <textarea
+                    className="sr-textarea"
+                    placeholder="Cuéntale a la comunidad sobre ti, tus intereses o materias favoritas..."
+                    value={draft.bio}
+                    onChange={(e) => setDraft((p) => ({ ...p, bio: e.target.value }))}
+                  />
+                ) : (
+                  <p className="sr-info-text">
+                    {profile.bio || <span className="sr-empty-placeholder">¡Haz clic en Editar Perfil para escribir tu biografía por primera vez!</span>}
+                  </p>
+                )}
+              </div>
+
+              {/* Tarjeta: Información de contacto */}
+              <div className="sr-info-card">
+                <div>
+                  <div className="sr-info-card-title">Información de contacto</div>
+
+                  {/* Campo: Correo */}
+                  <div className="sr-contact-item">
+                    <div className="sr-contact-label">Correo</div>
+                    {editing ? (
+                      <input
+                        className="sr-input"
+                        value={draft.email}
+                        disabled={profile.isGoogleUser} // Candado si viene de Google OAuth
+                        onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))}
+                      />
+                    ) : (
+                      <div className="sr-contact-value">{profile.email}</div>
+                    )}
+                  </div>
+
+                  {/* Campo: Teléfono */}
+                  <div className="sr-contact-item">
+                    <div className="sr-contact-label">Teléfono</div>
+                    {editing ? (
+                      <input
+                        className="sr-input"
+                        placeholder="+57 300 000 0000"
+                        value={draft.phone}
+                        onChange={(e) => setDraft((p) => ({ ...p, phone: e.target.value }))}
+                      />
+                    ) : (
+                      <div className="sr-contact-value">
+                        {profile.phone || <span className="sr-empty-placeholder">No registrado</span>}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Campo: Ubicación */}
+                  <div className="sr-contact-item">
+                    <div className="sr-contact-label">Ubicación</div>
+                    {editing ? (
+                      <input
+                        className="sr-input"
+                        placeholder="Ciudad, Campus o Dirección"
+                        value={draft.location}
+                        onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))}
+                      />
+                    ) : (
+                      <div className="sr-contact-value">
+                        {profile.location || <span className="sr-empty-placeholder">No especificada</span>}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            {editing ? (
+              <div style={{ marginTop: 20 }}>
+                <button className="sr-save-btn" onClick={handleSaveChanges}>
+                  Guardar cambios
                 </button>
-              )}
-            </div>
-
-            {/* Estadísticas */}
-            <div className="sr-stats">
-              {stats.map((s) => (
-                <div key={s.label} className="sr-stat">
-                  <div className="sr-stat-value">{s.value}</div>
-                  <div className="sr-stat-label">{s.label}</div>
-                </div>
-              ))}
-            </div>
+                <button className="sr-cancel-edit-btn" onClick={() => {
+                  if (hasUnsavedChanges) {
+                    setShowDiscardModal(true);
+                  } else {
+                    setEditing(false);
+                    setErrors({});
+                  }
+                }}>
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button className="sr-delete-account-btn" onClick={() => setShowDeleteModal(true)}>
+                Eliminar Cuenta
+              </button>
+            )}
           </div>
+        </div>
 
-          <div className="sr-info-grid">
-            
-            {/* Tarjeta: Acerca de mí */}
-            <div className="sr-info-card">
-              <div className="sr-info-card-title">Acerca de mí</div>
-              {editing ? (
-                <textarea
-                  className="sr-textarea"
-                  placeholder="Cuéntale a la comunidad sobre ti, tus intereses o materias favoritas..."
-                  value={draft.bio}
-                  onChange={(e) => setDraft((p) => ({ ...p, bio: e.target.value }))}
-                />
-              ) : (
-                <p className="sr-info-text">
-                  {profile.bio || <span className="sr-empty-placeholder">¡Haz clic en Editar Perfil para escribir tu biografía por primera vez!</span>}
-                </p>
-              )}
-            </div>
-
-            {/* Tarjeta: Información de contacto */}
-            <div className="sr-info-card">
-              <div>
-                <div className="sr-info-card-title">Información de contacto</div>
-
-                {/* Campo: Correo */}
-                <div className="sr-contact-item">
-                  <div className="sr-contact-label">Correo</div>
-                  {editing ? (
-                    <input
-                      className="sr-input"
-                      value={draft.email}
-                      disabled={profile.isGoogleUser} // Candado si viene de Google OAuth
-                      onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))}
-                    />
-                  ) : (
-                    <div className="sr-contact-value">{profile.email}</div>
-                  )}
-                </div>
-
-                {/* Campo: Teléfono */}
-                <div className="sr-contact-item">
-                  <div className="sr-contact-label">Teléfono</div>
-                  {editing ? (
-                    <input
-                      className="sr-input"
-                      placeholder="+57 300 000 0000"
-                      value={draft.phone}
-                      onChange={(e) => setDraft((p) => ({ ...p, phone: e.target.value }))}
-                    />
-                  ) : (
-                    <div className="sr-contact-value">
-                      {profile.phone || <span className="sr-empty-placeholder">No registrado</span>}
-                    </div>
-                  )}
-                </div>
-
-                {/* Campo: Ubicación */}
-                <div className="sr-contact-item">
-                  <div className="sr-contact-label">Ubicación</div>
-                  {editing ? (
-                    <input
-                      className="sr-input"
-                      placeholder="Ciudad, Campus o Dirección"
-                      value={draft.location}
-                      onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))}
-                    />
-                  ) : (
-                    <div className="sr-contact-value">
-                      {profile.location || <span className="sr-empty-placeholder">No especificada</span>}
-                    </div>
-                  )}
-                </div>
-
+        {showDeleteModal && (
+          <div className="sr-modal-overlay">
+            <div className="sr-modal">
+              <h3 className="sr-modal-title">¿Estás completamente seguro?</h3>
+              <p className="sr-modal-desc">
+                Esta acción es irreversible. Se borrarán de forma permanente tus datos de perfil y tus salas creadas.
+              </p>
+              <div className="sr-modal-actions">
+                <button className="sr-confirm-delete-btn" onClick={() => { setShowDeleteModal(false); navigate("/login"); }}>
+                  Sí, eliminar cuenta
+                </button>
+                <button className="sr-cancel-edit-btn" onClick={() => setShowDeleteModal(false)}>
+                  Cancelar
+                </button>
               </div>
             </div>
           </div>
+        )}
 
-          {editing ? (
-            <div style={{ marginTop: 20 }}>
-              <button className="sr-save-btn" onClick={handleSaveChanges}>
-                Guardar cambios
-              </button>
-              <button className="sr-cancel-edit-btn" onClick={() => { setEditing(false); setErrors({}); }}>
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <button className="sr-delete-account-btn" onClick={() => setShowDeleteModal(true)}>
-              Eliminar Cuenta
-            </button>
-          )}
-        </div>
-      </div>
+        {showDiscardModal && (
+          <div className="sr-modal-overlay">
+            <div className="sr-modal">
+              <h3 className="sr-modal-title">
+                ¿Descartar cambios?
+              </h3>
 
-      {showDeleteModal && (
-        <div className="sr-modal-overlay">
-          <div className="sr-modal">
-            <h3 className="sr-modal-title">¿Estás completamente seguro?</h3>
-            <p className="sr-modal-desc">
-              Esta acción es irreversible. Se borrarán de forma permanente tus datos de perfil y tus salas creadas.
-            </p>
-            <div className="sr-modal-actions">
-              <button className="sr-confirm-delete-btn" onClick={() => { setShowDeleteModal(false); navigate("/login"); }}>
-                Sí, eliminar cuenta
-              </button>
-              <button className="sr-cancel-edit-btn" onClick={() => setShowDeleteModal(false)}>
-                Cancelar
-              </button>
+              <p className="sr-modal-desc">
+                Si abandonas esta página, perderás los cambios realizados.
+              </p>
+
+              <div className="sr-modal-actions">
+                <button
+                  className="sr-confirm-delete-btn"
+                  onClick={() => {
+                    setDraft(profile);
+                    setEditing(false);
+                    setErrors({});
+                    setShowDiscardModal(false);
+                  }}
+                >
+                  Salir sin guardar
+                </button>
+
+                <button
+                  className="sr-cancel-edit-btn"
+                  onClick={() => setShowDiscardModal(false)}
+                >
+                  Continuar editando
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </>
-  );
-}
+        )}
+
+        {toast && (
+          <div className={`sr-toast ${toast.type}`}>
+            <span>{toast.message}</span>
+          </div>
+        )}
+      </>
+    );
+  }

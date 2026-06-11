@@ -42,7 +42,7 @@ export default function CreateRoomForm({ onSuccess, onCancel }: CreateRoomFormPr
           style={{ borderColor: error ? "#e05454" : "#2a2a2a" }}
         />
         {error && (
-          <div style={{ color: "#e05454", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ color: "#4D9DFF", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
             ⚠️ El nombre de la sala es obligatorio
           </div>
         )}
@@ -67,7 +67,7 @@ export default function CreateRoomForm({ onSuccess, onCancel }: CreateRoomFormPr
         textAlign: "left"
       }}>
         <div style={{ color: "#4caf50", fontWeight: 600, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-          💡 Código de sala
+          Código de sala
         </div>
         <p style={{ color: "#888", fontSize: "12px", lineHeight: "1.4" }}>
           Una vez creada la sala, se generará automáticamente un código único (ej: MAT-2024) que podrás compartir con tus compañeros.
