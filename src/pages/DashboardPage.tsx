@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import CreateRoomForm from "../components/CreateRoomForm";
+import AppNavbar from "../components/AppNavbar";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const styles = `
@@ -16,55 +17,6 @@ const styles = `
     font-family: 'Outfit', sans-serif;
     color: #e5e5e5;
   }
-
-  /* ── Navbar ── */
-  .sr-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 28px;
-    height: 56px;
-    background: #0f0f0f;
-    border-bottom: 1px solid #1a1a1a;
-  }
-  .sr-nav-logo { display: flex; align-items: center; gap: 8px; }
-  .sr-nav-logo-icon {
-    width: 32px; height: 32px;
-    background: #111; border: 1.5px solid #2a5c2a; border-radius: 7px;
-    display: flex; align-items: center; justify-content: center; color: #4caf50;
-  }
-  .sr-nav-logo-text { font-size: 17px; font-weight: 600; color: #f0f0f0; }
-
-  .sr-nav-avatar {
-    width: 36px; height: 36px;
-    background: #2a6b2a;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: #d4edda;
-    cursor: pointer;
-    position: relative;
-  }
-  .sr-nav-dropdown {
-    position: absolute;
-    top: 44px; right: 0;
-    background: #1a1a1a;
-    border: 1px solid #2a2a2a;
-    border-radius: 10px;
-    overflow: hidden;
-    min-width: 160px;
-    z-index: 100;
-  }
-  .sr-nav-dropdown button {
-    display: block; width: 100%;
-    padding: 10px 16px;
-    background: none; border: none;
-    text-align: left; font-size: 14px;
-    font-family: 'Outfit', sans-serif;
-    color: #ccc; cursor: pointer;
-    transition: background 0.15s;
-  }
-  .sr-nav-dropdown button:hover { background: #222; }
-  .sr-nav-dropdown button.danger { color: #e05454; }
 
   /* ── Body ── */
   .sr-dash-body { padding: 40px 32px; max-width: 1100px; margin: 0 auto; }
@@ -120,10 +72,35 @@ const styles = `
     background: #111; border: 1px solid #1e1e1e; border-radius: 12px;
     padding: 20px 22px;
     transition: border-color 0.2s;
+    position: relative;
   }
   .sr-room-card:hover { border-color: #2a5c2a; }
 
-  .sr-room-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 5px; }
+  .sr-room-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
+  .sr-room-name { font-size: 16px; font-weight: 600; color: #fff; }
+
+  .sr-dots-btn {
+    background: none; border: none; cursor: pointer; padding: 2px 4px;
+    color: #4caf50; display: flex; align-items: center; border-radius: 4px;
+    transition: background 0.15s; flex-shrink: 0; margin-left: 8px; margin-top: -1px;
+  }
+  .sr-dots-btn:hover { background: #1a2e1a; }
+
+  .sr-dropdown {
+    position: absolute; top: 44px; right: 16px; z-index: 50;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); min-width: 140px; overflow: hidden;
+  }
+  .sr-dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; font-size: 13px; font-family: 'Outfit', sans-serif;
+    background: none; border: none; width: 100%; text-align: left;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .sr-dropdown-item { color: #ccc; }
+  .sr-dropdown-item:hover { background: #252525; color: #fff; }
+  .sr-dropdown-item.danger { color: #ef5350; }
+  .sr-dropdown-item.danger:hover { background: #2c1414; }
   .sr-room-desc { font-size: 13px; color: #666; margin-bottom: 14px; line-height: 1.4; }
 
   .sr-room-meta {
@@ -159,7 +136,6 @@ const styles = `
     width: 100%; max-width: 380px;
   }
   .sr-modal-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px; }
-  .sr-modal-sub { font-size: 14px; color: #666; margin-bottom: 22px; }
 
   .sr-modal-field { margin-bottom: 18px; }
   .sr-modal-label { display: block; font-size: 13px; color: #ccc; font-weight: 500; margin-bottom: 6px; }
@@ -172,7 +148,7 @@ const styles = `
   .sr-modal-input::placeholder { color: #444; }
   .sr-modal-input:focus { border-color: #3a7d3a; }
 
-  .sr-modal-actions { display: flex; gap: 10px; }
+  .sr-modal-actions { display: flex; gap: 10px; margin-top: 24px; }
   .sr-modal-actions .sr-btn-primary { flex: 1; justify-content: center; padding: 11px; font-size: 14px; }
   .sr-modal-cancel {
     flex: 1; background: transparent; border: 1px solid #2a2a2a; border-radius: 8px;
@@ -180,6 +156,14 @@ const styles = `
     color: #888; cursor: pointer; transition: background 0.2s;
   }
   .sr-modal-cancel:hover { background: #1a1a1a; }
+
+  .sr-modal-desc { font-size: 14px; color: #aaa; line-height: 1.5; margin-bottom: 24px; }
+  .sr-confirm-delete-btn {
+    flex: 1; background: #c62828; border: none; border-radius: 8px;
+    padding: 11px; font-size: 14px; font-family: 'Outfit', sans-serif;
+    font-weight: 600; color: #fff; cursor: pointer; transition: background 0.2s;
+  }
+  .sr-confirm-delete-btn:hover { background: #b71c1c; }
 
   /* ── Feedback ── */
   .sr-toast {
@@ -214,11 +198,6 @@ const styles = `
   }
 `;
 
-const BookOpenIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-  </svg>
-);
 const SearchIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -236,22 +215,36 @@ const PlusIcon = () => (
 );
 
 export default function DashboardPage() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [rooms, setRooms] = useState<any[]>([]);
-
-  const initials = user?.displayName
-    ? user.displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
-    : user?.email?.[0]?.toUpperCase() ?? "?";
+  const [rooms, setRooms] = useState<any[]>([
+    { id: "1", name: "Matemáticas Avanzadas", description: "Cálculo diferencial e integral, series y sucesiones.", members: 4, maxMembers: 10, code: "SR-1042", creator: "Maria Garcia" },
+    { id: "2", name: "Programación Web", description: "React, TypeScript y diseño de APIs REST.", members: 2, maxMembers: 8, code: "SR-2218", creator: "Juan Esteban" },
+    { id: "3", name: "Física Cuántica", description: "Mecánica cuántica y relatividad especial.", members: 6, maxMembers: 6, code: "SR-3374", creator: "Valentina Garcia" },
+    { id: "4", name: "Historia del Arte", description: "Arte contemporáneo y movimientos del siglo XX.", members: 1, maxMembers: 12, code: "SR-4891", creator: "Juan Pablo" },
+  ]);
 
   const firstName = user?.displayName?.split(" ")[0] || "Usuario";
 
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
+  const [roomToEdit, setRoomToEdit] = useState<{ id: string; name: string; description: string } | null>(null);
+  const [editError, setEditError] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+
+  const closeJoinModal = () => { setShowJoin(false); setJoinCode(""); setJoinError(null); };
+
+  const handleJoin = () => {
+    if (!joinCode.trim()) { setJoinError("Ingresa un código de sala"); return; }
+    const room = rooms.find((r) => r.code.toLowerCase() === joinCode.trim().toLowerCase());
+    if (room) { closeJoinModal(); navigate(`/sala/${room.id}`); }
+    else setJoinError("Sala no encontrada. Verifica el código e intenta de nuevo.");
+  };
 
   const handleRoomCreatedSuccess = (roomData: { name: string; description: string }) => {
     try {
@@ -294,24 +287,7 @@ export default function DashboardPage() {
     <>
       <style>{styles}</style>
       <div className="sr-dash">
-        {/* Navbar */}
-        <nav className="sr-nav">
-          <div className="sr-nav-logo">
-            <div className="sr-nav-logo-icon"><BookOpenIcon /></div>
-            <span className="sr-nav-logo-text">StudyRoom</span>
-          </div>
-          <div style={{ position: "relative" }}>
-            <div className="sr-nav-avatar" onClick={() => setDropdownOpen((v) => !v)}>
-              {initials}
-            </div>
-            {dropdownOpen && (
-              <div className="sr-nav-dropdown">
-                <button onClick={() => { setDropdownOpen(false); navigate("/perfil"); }}>Mi perfil</button>
-                <button className="danger" onClick={async () => { await logout(); }}>Cerrar sesión</button>
-              </div>
-            )}
-          </div>
-        </nav>
+        <AppNavbar showDropdown />
 
         {/* Body */}
         <div className="sr-dash-body">
@@ -365,7 +341,33 @@ export default function DashboardPage() {
             <div className="sr-rooms-grid">
               {filteredRooms.map((room) => (
                 <div key={room.id} className="sr-room-card">
-                  <div className="sr-room-name">{room.name}</div>
+                  {openMenuId === room.id && (
+                    <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setOpenMenuId(null)} />
+                  )}
+                  <div className="sr-room-header">
+                    <div className="sr-room-name">{room.name}</div>
+                    <button
+                      className="sr-dots-btn"
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === room.id ? null : room.id); }}
+                      title="Opciones"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                      </svg>
+                    </button>
+                    {openMenuId === room.id && (
+                      <div className="sr-dropdown" onClick={(e) => e.stopPropagation()}>
+                        <button className="sr-dropdown-item" onClick={() => { setRoomToEdit({ id: room.id, name: room.name, description: room.description }); setOpenMenuId(null); }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          Editar
+                        </button>
+                        <button className="sr-dropdown-item danger" onClick={() => { setRoomToDelete(room.id); setOpenMenuId(null); }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="sr-room-desc">{room.description}</div>
                   <div className="sr-room-meta">
                     <span className="sr-room-members">{room.members}/{room.maxMembers}</span>
@@ -390,24 +392,33 @@ export default function DashboardPage() {
 
       {/* Join Modal */}
       {showJoin && (
-        <div className="sr-modal-backdrop" onClick={() => setShowJoin(false)}>
-          <div className="sr-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sr-modal-backdrop">
+          <form className="sr-modal" onSubmit={(e) => { e.preventDefault(); handleJoin(); }}>
             <div className="sr-modal-title">Unirse con código</div>
             <div className="sr-modal-sub">Ingresa el código de la sala para unirte</div>
             <div className="sr-modal-field">
-              <label className="sr-modal-label">Código de sala</label>
+              <label className="sr-modal-label" style={{ color: joinError ? "#e05454" : "#ccc" }}>
+                Código de sala
+              </label>
               <input
                 className="sr-modal-input"
-                placeholder="Ej: MAT-2024"
+                placeholder="Ej: SR-1042"
                 value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
+                onChange={(e) => { setJoinCode(e.target.value); if (joinError) setJoinError(null); }}
+                style={{ borderColor: joinError ? "#e05454" : "#2a2a2a" }}
+                autoFocus
               />
+              {joinError && (
+                <div style={{ color: "#e05454", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                  {joinError}
+                </div>
+              )}
             </div>
             <div className="sr-modal-actions">
-              <button className="sr-modal-cancel" onClick={() => setShowJoin(false)}>Cancelar</button>
-              <button className="sr-btn-primary" onClick={() => setShowJoin(false)}>Unirse</button>
+              <button type="button" className="sr-modal-cancel" onClick={closeJoinModal}>Cancelar</button>
+              <button type="submit" className="sr-btn-primary">Unirse</button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
@@ -425,7 +436,85 @@ export default function DashboardPage() {
           {notification.type === "success" ? "✅" : "❌"} {notification.message}
         </div>
       )}
-      
+
+      {roomToEdit && (
+        <div className="sr-modal-backdrop" onClick={() => { setRoomToEdit(null); setEditError(false); }}>
+          <form
+            className="sr-modal"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!roomToEdit.name.trim()) { setEditError(true); return; }
+              setRooms(rooms.map((r) => r.id === roomToEdit.id ? { ...r, name: roomToEdit.name, description: roomToEdit.description } : r));
+              setRoomToEdit(null);
+              setEditError(false);
+            }}
+          >
+            <div className="sr-modal-title">Editar sala</div>
+            <div className="sr-modal-sub">Modifica los datos de tu sala de estudio</div>
+            <div className="sr-modal-field">
+              <label className="sr-modal-label" style={{ color: editError ? "#e05454" : "#ccc" }}>
+                Nombre de la sala
+              </label>
+              <input
+                className="sr-modal-input"
+                placeholder="Ej: Cálculo diferencial"
+                value={roomToEdit.name}
+                onChange={(e) => { setRoomToEdit({ ...roomToEdit, name: e.target.value }); if (e.target.value.trim()) setEditError(false); }}
+                style={{ borderColor: editError ? "#e05454" : "#2a2a2a" }}
+              />
+              {editError && (
+                <div style={{ color: "#e05454", fontSize: "12px", marginTop: "6px" }}>
+                  El nombre de la sala es obligatorio
+                </div>
+              )}
+            </div>
+            <div className="sr-modal-field">
+              <label className="sr-modal-label">Descripción (Opcional)</label>
+              <textarea
+                className="sr-modal-input"
+                placeholder="Describe el tema de la sala"
+                value={roomToEdit.description}
+                onChange={(e) => setRoomToEdit({ ...roomToEdit, description: e.target.value })}
+                style={{ height: "80px", resize: "none" }}
+              />
+            </div>
+            <div className="sr-modal-actions">
+              <button type="button" className="sr-modal-cancel" onClick={() => { setRoomToEdit(null); setEditError(false); }}>
+                Cancelar
+              </button>
+              <button type="submit" className="sr-btn-primary">
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {roomToDelete && (
+        <div className="sr-modal-backdrop" onClick={() => setRoomToDelete(null)}>
+          <div className="sr-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="sr-modal-title" style={{ fontSize: "18px", color: "#f44336", marginBottom: "12px" }}>
+              ¿Estás seguro de eliminar esta sala?
+            </div>
+            <p className="sr-modal-desc">
+              Se eliminará la sala y toda la información asociada dejará de estar disponible para sus participantes. Esta acción no se puede deshacer.
+            </p>
+            <div className="sr-modal-actions" style={{ justifyContent: "center" }}>
+              <button
+                className="sr-confirm-delete-btn"
+                onClick={() => { setRooms(rooms.filter((r) => r.id !== roomToDelete)); setRoomToDelete(null); }}
+              >
+                Sí, eliminar sala
+              </button>
+              <button className="sr-modal-cancel" onClick={() => setRoomToDelete(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }

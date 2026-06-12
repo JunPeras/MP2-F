@@ -42,7 +42,7 @@ export default function CreateRoomForm({ onSuccess, onCancel }: CreateRoomFormPr
           style={{ borderColor: error ? "#e05454" : "#2a2a2a" }}
         />
         {error && (
-          <div style={{ color: "#4D9DFF", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ color: "#e05454", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
             ⚠️ El nombre de la sala es obligatorio
           </div>
         )}
@@ -50,11 +50,12 @@ export default function CreateRoomForm({ onSuccess, onCancel }: CreateRoomFormPr
       
       <div className="sr-modal-field">
         <label className="sr-modal-label">Descripción (Opcional)</label>
-        <input
+        <textarea
           className="sr-modal-input"
           placeholder="Describe el tema de la sala"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          style={{ height: "80px", resize: "none" }}
         />
       </div>
 

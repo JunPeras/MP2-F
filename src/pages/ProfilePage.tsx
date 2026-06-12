@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
+import AppNavbar from "../components/AppNavbar";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
@@ -12,31 +13,6 @@ const styles = `
     background: #0a0a0a;
     font-family: 'Outfit', sans-serif;
     color: #e5e5e5;
-  }
-
-  .sr-nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 28px; height: 56px;
-    background: #0f0f0f; border-bottom: 1px solid #1a1a1a;
-  }
-  .sr-nav-left { display: flex; align-items: center; gap: 14px; }
-  .sr-back-btn {
-    background: none; border: none; cursor: pointer;
-    color: #4caf50; display: flex; align-items: center; padding: 4px;
-    transition: color 0.2s;
-  }
-  .sr-back-btn:hover { color: #81c784; }
-  .sr-nav-logo { display: flex; align-items: center; gap: 8px; }
-  .sr-nav-logo-icon {
-    width: 32px; height: 32px;
-    background: #111; border: 1.5px solid #2a5c2a; border-radius: 7px;
-    display: flex; align-items: center; justify-content: center; color: #4caf50;
-  }
-  .sr-nav-logo-text { font-size: 17px; font-weight: 600; color: #f0f0f0; }
-  .sr-nav-avatar {
-    width: 36px; height: 36px; background: #2a6b2a; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: #d4edda;
   }
 
   .sr-profile-body { padding: 32px; max-width: 900px; margin: 0 auto; }
@@ -185,17 +161,6 @@ const styles = `
   }
 `;
 
-const BookOpenIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-  </svg>
-);
-const ArrowLeftIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
-  </svg>
-);
-
 interface ProfileData {
   firstName: string;
   lastName: string;
@@ -309,22 +274,18 @@ export default function ProfilePage() {
       <>
         <style>{styles}</style>
         <div className="sr-profile">
-          <nav className="sr-nav">
-            <div className="sr-nav-left">
-              <button className="sr-back-btn" onClick={() => navigate("/dashboard")}><ArrowLeftIcon /></button>
-              <div className="sr-nav-logo">
-                <div className="sr-nav-logo-icon"><BookOpenIcon /></div>
-                <span className="sr-nav-logo-text">StudyRoom</span>
-              </div>
-            </div>
-            <div className="sr-nav-avatar">{initials}</div>
-          </nav>
+          <AppNavbar showBack />
 
           <div className="sr-profile-body">
             {/* ── Hero Card) ── */}
             <div className="sr-hero-card">
               <div className="sr-hero-top">
-                <div className="sr-avatar-lg">{initials}</div>
+                <div className="sr-avatar-lg">
+                  {user?.photoURL
+                    ? <img src={user.photoURL} alt={user.displayName || "Avatar"} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                    : initials
+                  }
+                </div>
                 <div className="sr-hero-info">
 
                   {editing ? (
@@ -561,4 +522,4 @@ export default function ProfilePage() {
         )}
       </>
     );
-  }
+}
