@@ -32,3 +32,9 @@ export const apiPost = (path: string, body: unknown): Promise<Response> =>
 
 export const apiGet = (path: string): Promise<Response> =>
   apiFetch(path, { method: "GET" });
+
+export const apiPut = (path: string, body: unknown): Promise<Response> =>
+  apiFetch(path, { method: "PUT", body: JSON.stringify(body) });
+
+export const apiDelete = (path: string): Promise<Response> =>
+  apiFetch(path, { method: "DELETE" });

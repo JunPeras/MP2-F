@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import AppNavbar from "../components/AppNavbar";
+import { apiPut, apiDelete } from "../lib/api";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
@@ -174,7 +175,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const { user } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
   const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
@@ -187,16 +188,17 @@ export default function ProfilePage() {
   } | null>(null);
 
   const [profile, setProfile] = useState<ProfileData>({
-    firstName: user?.displayName?.split(" ")[0] || "Andrea",
-    lastName: user?.displayName?.split(" ")[1] || "Solarte",
-    username: user?.username || "yeye",
-    email: user?.email || "yeye@univalle.edu.co",
-    title: "",
-    bio: "",
-    phone: "",
-    location: "",
-    isGoogleUser: true
+    firstName: user?.firstName || user?.displayName?.split(" ")[0] || "",
+    lastName: user?.lastName || user?.displayName?.split(" ").slice(1).join(" ") || "",
+    username: user?.username || "",
+    email: user?.email || "",
+    title: user?.title || "",
+    bio: user?.bio || "",
+    phone: user?.phone || "",
+    location: user?.location || "",
+    isGoogleUser: user?.providerData?.[0]?.providerId === "google.com",
   });
+  const [saving, setSaving] = useState(false);
 
   const [draft, setDraft] = useState<ProfileData>(profile);
   const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; username?: string }>({});
@@ -226,48 +228,54 @@ export default function ProfilePage() {
     { value: 45, label: "Compañeros" },
   ];
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
     const currentErrors: { firstName?: string; lastName?: string; username?: string } = {};
 
     if (!draft.firstName.trim()) currentErrors.firstName = "El nombre es obligatorio.";
     if (!draft.lastName.trim()) currentErrors.lastName = "El apellido es obligatorio.";
-
-    if (draft.username.trim().length < 3) {
-      currentErrors.username = "El username debe tener al menos 3 caracteres.";
-    }
-
-    if (draft.username.toLowerCase() === "ocupado") {
-      currentErrors.username = "Este nombre de usuario ya está siendo utilizado.";
-    }
+    if (draft.username.trim().length < 3) currentErrors.username = "El username debe tener al menos 3 caracteres.";
 
     if (Object.keys(currentErrors).length > 0) {
       setErrors(currentErrors);
-
-      showToast(
-        "error",
-        "Por favor corrige los campos marcados."
-      );
-
-      return true;
+      showToast("error", "Por favor corrige los campos marcados.");
+      return;
     }
 
     if (JSON.stringify(profile) === JSON.stringify(draft)) {
-      showToast(
-        "error",
-        "No se detectaron cambios para guardar."
-      );
-
-      return true;
+      showToast("error", "No se detectaron cambios para guardar.");
+      return;
     }
 
-    setProfile(draft);
-    setErrors({});
-    setEditing(false);
+    setSaving(true);
+    try {
+      const res = await apiPut("/api/users/profile", {
+        firstName: draft.firstName.trim(),
+        lastName: draft.lastName.trim(),
+        username: draft.username.trim(),
+      });
 
-    showToast(
-      "success",
-      "Tus cambios se guardaron correctamente."
-    );
+      if (res.status === 409) {
+        setErrors({ username: "Este nombre de usuario ya está siendo utilizado." });
+        showToast("error", "El username ya está en uso.");
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast("error", (data as any).message || "No se pudo guardar el perfil. Intenta más tarde.");
+        return;
+      }
+
+      setProfile(draft);
+      setErrors({});
+      setEditing(false);
+      updateUser({ firstName: draft.firstName, lastName: draft.lastName, username: draft.username });
+      showToast("success", "Tus cambios se guardaron correctamente.");
+    } catch {
+      showToast("error", "Error de conexión. No se pudo guardar el perfil.");
+    } finally {
+      setSaving(false);
+    }
   };
 
     return (
@@ -439,8 +447,8 @@ export default function ProfilePage() {
 
             {editing ? (
               <div style={{ marginTop: 20 }}>
-                <button className="sr-save-btn" onClick={handleSaveChanges}>
-                  Guardar cambios
+                <button className="sr-save-btn" onClick={handleSaveChanges} disabled={saving} style={{ opacity: saving ? 0.6 : 1 }}>
+                  {saving ? "Guardando..." : "Guardar cambios"}
                 </button>
                 <button className="sr-cancel-edit-btn" onClick={() => {
                   if (hasUnsavedChanges) {
@@ -469,7 +477,14 @@ export default function ProfilePage() {
                 Esta acción es irreversible. Se borrarán de forma permanente tus datos de perfil y tus salas creadas.
               </p>
               <div className="sr-modal-actions">
-                <button className="sr-confirm-delete-btn" onClick={() => { setShowDeleteModal(false); navigate("/login"); }}>
+                <button className="sr-confirm-delete-btn" onClick={async () => {
+                  try {
+                    await apiDelete("/api/users/me");
+                  } catch { /* si falla la red, igual limpiamos la sesión local */ }
+                  setShowDeleteModal(false);
+                  await logout();
+                  navigate("/login");
+                }}>
                   Sí, eliminar cuenta
                 </button>
                 <button className="sr-cancel-edit-btn" onClick={() => setShowDeleteModal(false)}>

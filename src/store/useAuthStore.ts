@@ -38,6 +38,7 @@ interface AuthState {
   ) => Promise<void>;
   logout: () => Promise<void>;
   setProfileComplete: (value: boolean) => void;
+  updateUser: (updates: Partial<CustomUser>) => void;
 }
 
 function mapFirebaseError(error: any): Error {
@@ -83,6 +84,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialized: false,
 
   setProfileComplete: (value: boolean) => set({ profileComplete: value }),
+
+  updateUser: (updates) => set((state) => ({
+    user: state.user ? { ...state.user, ...updates } as CustomUser : null,
+  })),
 
   init: () => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {

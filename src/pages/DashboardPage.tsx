@@ -1,8 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import CreateRoomForm from "../components/CreateRoomForm";
 import AppNavbar from "../components/AppNavbar";
+import { apiGet, apiPost } from "../lib/api";
+
+interface Room {
+  id: string;
+  name: string;
+  description?: string;
+  membersCount: number;
+  adminUsername: string;
+  code?: string;
+}
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const styles = `
@@ -221,12 +231,13 @@ export default function DashboardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [rooms, setRooms] = useState<any[]>([
-    { id: "1", name: "Matemáticas Avanzadas", description: "Cálculo diferencial e integral, series y sucesiones.", members: 4, maxMembers: 10, code: "SR-1042", creator: "Maria Garcia" },
-    { id: "2", name: "Programación Web", description: "React, TypeScript y diseño de APIs REST.", members: 2, maxMembers: 8, code: "SR-2218", creator: "Juan Esteban" },
-    { id: "3", name: "Física Cuántica", description: "Mecánica cuántica y relatividad especial.", members: 6, maxMembers: 6, code: "SR-3374", creator: "Valentina Garcia" },
-    { id: "4", name: "Historia del Arte", description: "Arte contemporáneo y movimientos del siglo XX.", members: 1, maxMembers: 12, code: "SR-4891", creator: "Juan Pablo" },
-  ]);
+  // Mock rooms (comentados — reemplazados por GET /api/rooms)
+  // { id: "1", name: "Matemáticas Avanzadas", description: "Cálculo diferencial e integral, series y sucesiones.", members: 4, maxMembers: 10, code: "SR-1042", creator: "Maria Garcia" },
+  // { id: "2", name: "Programación Web", description: "React, TypeScript y diseño de APIs REST.", members: 2, maxMembers: 8, code: "SR-2218", creator: "Juan Esteban" },
+  // { id: "3", name: "Física Cuántica", description: "Mecánica cuántica y relatividad especial.", members: 6, maxMembers: 6, code: "SR-3374", creator: "Valentina Garcia" },
+  // { id: "4", name: "Historia del Arte", description: "Arte contemporáneo y movimientos del siglo XX.", members: 1, maxMembers: 12, code: "SR-4891", creator: "Juan Pablo" },
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
 
   const firstName = user?.displayName?.split(" ")[0] || "Usuario";
 
@@ -237,6 +248,27 @@ export default function DashboardPage() {
   const [editError, setEditError] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
+  const fetchRooms = async () => {
+    setLoadingRooms(true);
+    try {
+      const res = await apiGet("/api/rooms");
+      if (res.ok) {
+        const data = await res.json();
+        setRooms(Array.isArray(data) ? data : []);
+      } else {
+        setNotification({ type: "error", message: "No se pudieron cargar las salas." });
+        setTimeout(() => setNotification(null), 3500);
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de conexión al cargar salas." });
+      setTimeout(() => setNotification(null), 3500);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  useEffect(() => { fetchRooms(); }, []);
+
   const closeJoinModal = () => { setShowJoin(false); setJoinCode(""); setJoinError(null); };
 
   const handleJoin = () => {
@@ -246,32 +278,26 @@ export default function DashboardPage() {
     else setJoinError("Sala no encontrada. Verifica el código e intenta de nuevo.");
   };
 
-  const handleRoomCreatedSuccess = (roomData: { name: string; description: string }) => {
+  const handleRoomCreatedSuccess = async (roomData: { name: string; description: string }) => {
     try {
-      const newRoomObj = {
-        id: Date.now().toString(),
-        name: roomData.name,
-        description: roomData.description || "Sin descripción",
-        members: 1,
-        maxMembers: 10,
-        code: "SR-" + Math.floor(1000 + Math.random() * 9000),
-        creator: firstName + " (Tú)"
-      };
-
-      setRooms([newRoomObj, ...rooms]);
+      const res = await apiPost("/api/rooms", { name: roomData.name });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setNotification({
+          type: "error",
+          message: (data as any).message || "No pudimos crear la sala. Por favor, intenta más tarde."
+        });
+        setTimeout(() => setNotification(null), 3500);
+        return;
+      }
       setShowCreate(false);
-
-      setNotification({
-        type: "success",
-        message: "¡Sala creada exitosamente!"
-      });
-
+      await fetchRooms();
+      setNotification({ type: "success", message: "¡Sala creada exitosamente!" });
       setTimeout(() => setNotification(null), 3000);
-
-    } catch (err) {
+    } catch {
       setNotification({
         type: "error",
-        message: "No pudimos crear la sala en este momento. Por favor, intenta más tarde."
+        message: "Error de conexión. No pudimos crear la sala."
       });
       setTimeout(() => setNotification(null), 3500);
     }
@@ -280,7 +306,7 @@ export default function DashboardPage() {
   const filteredRooms = rooms.filter(
     (r) =>
       r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.description.toLowerCase().includes(search.toLowerCase())
+      (r.description || "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -316,7 +342,9 @@ export default function DashboardPage() {
           {/* Salas de estudio */}
           <div className="sr-section-title">Salas de estudio</div>
 
-          {rooms.length === 0 ? (
+          {loadingRooms ? (
+            <div style={{ color: "#555", fontSize: 14, padding: "32px 0" }}>Cargando salas...</div>
+          ) : rooms.length === 0 ? (
             <div style={{
               background: "#111",
               border: "1px solid #1e1e1e",
@@ -357,7 +385,7 @@ export default function DashboardPage() {
                     </button>
                     {openMenuId === room.id && (
                       <div className="sr-dropdown" onClick={(e) => e.stopPropagation()}>
-                        <button className="sr-dropdown-item" onClick={() => { setRoomToEdit({ id: room.id, name: room.name, description: room.description }); setOpenMenuId(null); }}>
+                        <button className="sr-dropdown-item" onClick={() => { setRoomToEdit({ id: room.id, name: room.name, description: room.description || "" }); setOpenMenuId(null); }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           Editar
                         </button>
@@ -368,13 +396,15 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </div>
-                  <div className="sr-room-desc">{room.description}</div>
+                  <div className="sr-room-desc">{room.description || ""}</div>
                   <div className="sr-room-meta">
-                    <span className="sr-room-members">{room.members}/{room.maxMembers}</span>
-                    <span className="sr-room-code"># {room.code}</span>
+                    <span className="sr-room-members">
+                      {room.membersCount} {room.membersCount === 1 ? "participante" : "participantes"}
+                    </span>
+                    {room.code && <span className="sr-room-code"># {room.code}</span>}
                   </div>
                   <div className="sr-room-footer">
-                    <span className="sr-room-creator">Creada por {room.creator}</span>
+                    <span className="sr-room-creator">@{room.adminUsername}</span>
                     <button className="sr-btn-enter" onClick={() => navigate(`/sala/${room.id}`)}>
                       Entrar
                     </button>
