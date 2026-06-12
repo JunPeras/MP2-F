@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import CreateRoomForm from "../components/CreateRoomForm";
 import AppNavbar from "../components/AppNavbar";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGet, apiPost, apiPut, apiDelete } from "../lib/api";
 
 interface Room {
   id: string;
@@ -247,6 +247,8 @@ export default function DashboardPage() {
   const [roomToEdit, setRoomToEdit] = useState<{ id: string; name: string; description: string } | null>(null);
   const [editError, setEditError] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState(false);
 
   const fetchRooms = async () => {
     setLoadingRooms(true);
@@ -271,11 +273,20 @@ export default function DashboardPage() {
 
   const closeJoinModal = () => { setShowJoin(false); setJoinCode(""); setJoinError(null); };
 
-  const handleJoin = () => {
-    if (!joinCode.trim()) { setJoinError("Ingresa un código de sala"); return; }
-    const room = rooms.find((r) => r.code.toLowerCase() === joinCode.trim().toLowerCase());
-    if (room) { closeJoinModal(); navigate(`/sala/${room.id}`); }
-    else setJoinError("Sala no encontrada. Verifica el código e intenta de nuevo.");
+  const handleJoin = async () => {
+    const id = joinCode.trim();
+    if (!id) { setJoinError("Ingresa un código de sala"); return; }
+    try {
+      const res = await apiGet(`/api/rooms/${id}`);
+      if (res.ok) {
+        closeJoinModal();
+        navigate(`/sala/${id}`);
+      } else {
+        setJoinError("Sala no encontrada. Verifica el código e intenta de nuevo.");
+      }
+    } catch {
+      setJoinError("Error de conexión. Intenta de nuevo.");
+    }
   };
 
   const handleRoomCreatedSuccess = async (roomData: { name: string; description: string }) => {
@@ -300,6 +311,54 @@ export default function DashboardPage() {
         message: "Error de conexión. No pudimos crear la sala."
       });
       setTimeout(() => setNotification(null), 3500);
+    }
+  };
+
+  const handleEditSave = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!roomToEdit || !roomToEdit.name.trim()) { setEditError(true); return; }
+    setSavingEdit(true);
+    try {
+      const res = await apiPut(`/api/rooms/${roomToEdit.id}`, { name: roomToEdit.name.trim() });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setNotification({ type: "error", message: (data as any).message || "No se pudo actualizar la sala." });
+        setTimeout(() => setNotification(null), 3500);
+        return;
+      }
+      setRooms(rooms.map((r) => r.id === roomToEdit.id ? { ...r, name: roomToEdit.name.trim(), description: roomToEdit.description } : r));
+      setRoomToEdit(null);
+      setEditError(false);
+      setNotification({ type: "success", message: "Sala actualizada correctamente." });
+      setTimeout(() => setNotification(null), 3000);
+    } catch {
+      setNotification({ type: "error", message: "Error de conexión. No se pudo actualizar la sala." });
+      setTimeout(() => setNotification(null), 3500);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!roomToDelete) return;
+    setDeletingRoom(true);
+    try {
+      const res = await apiDelete(`/api/rooms/${roomToDelete}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setNotification({ type: "error", message: (data as any).message || "No se pudo eliminar la sala." });
+        setTimeout(() => setNotification(null), 3500);
+        return;
+      }
+      setRooms(rooms.filter((r) => r.id !== roomToDelete));
+      setRoomToDelete(null);
+      setNotification({ type: "success", message: "Sala eliminada correctamente." });
+      setTimeout(() => setNotification(null), 3000);
+    } catch {
+      setNotification({ type: "error", message: "Error de conexión. No se pudo eliminar la sala." });
+      setTimeout(() => setNotification(null), 3500);
+    } finally {
+      setDeletingRoom(false);
     }
   };
 
@@ -432,7 +491,7 @@ export default function DashboardPage() {
               </label>
               <input
                 className="sr-modal-input"
-                placeholder="Ej: SR-1042"
+                placeholder="Ej: xK9mPqR2vTn..."
                 value={joinCode}
                 onChange={(e) => { setJoinCode(e.target.value); if (joinError) setJoinError(null); }}
                 style={{ borderColor: joinError ? "#e05454" : "#2a2a2a" }}
@@ -453,7 +512,7 @@ export default function DashboardPage() {
       )}
 
       {showCreate && (
-        <div className="sr-modal-backdrop" onClick={() => setShowCreate(false)}>
+        <div className="sr-modal-backdrop">
           <CreateRoomForm 
             onSuccess={handleRoomCreatedSuccess} 
             onCancel={() => setShowCreate(false)} 
@@ -463,22 +522,17 @@ export default function DashboardPage() {
 
       {notification && (
         <div className={`sr-toast ${notification.type}`}>
-          {notification.type === "success" ? "✅" : "❌"} {notification.message}
+          {/* {notification.type === "success" ? "✅" : "❌"}  */}
+          {notification.message}
         </div>
       )}
 
       {roomToEdit && (
-        <div className="sr-modal-backdrop" onClick={() => { setRoomToEdit(null); setEditError(false); }}>
+        <div className="sr-modal-backdrop">
           <form
             className="sr-modal"
             onClick={(e) => e.stopPropagation()}
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!roomToEdit.name.trim()) { setEditError(true); return; }
-              setRooms(rooms.map((r) => r.id === roomToEdit.id ? { ...r, name: roomToEdit.name, description: roomToEdit.description } : r));
-              setRoomToEdit(null);
-              setEditError(false);
-            }}
+            onSubmit={handleEditSave}
           >
             <div className="sr-modal-title">Editar sala</div>
             <div className="sr-modal-sub">Modifica los datos de tu sala de estudio</div>
@@ -513,8 +567,8 @@ export default function DashboardPage() {
               <button type="button" className="sr-modal-cancel" onClick={() => { setRoomToEdit(null); setEditError(false); }}>
                 Cancelar
               </button>
-              <button type="submit" className="sr-btn-primary">
-                Guardar cambios
+              <button type="submit" className="sr-btn-primary" disabled={savingEdit} style={{ opacity: savingEdit ? 0.6 : 1 }}>
+                {savingEdit ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </form>
@@ -522,7 +576,7 @@ export default function DashboardPage() {
       )}
 
       {roomToDelete && (
-        <div className="sr-modal-backdrop" onClick={() => setRoomToDelete(null)}>
+        <div className="sr-modal-backdrop">
           <div className="sr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sr-modal-title" style={{ fontSize: "18px", color: "#f44336", marginBottom: "12px" }}>
               ¿Estás seguro de eliminar esta sala?
@@ -533,9 +587,11 @@ export default function DashboardPage() {
             <div className="sr-modal-actions" style={{ justifyContent: "center" }}>
               <button
                 className="sr-confirm-delete-btn"
-                onClick={() => { setRooms(rooms.filter((r) => r.id !== roomToDelete)); setRoomToDelete(null); }}
+                onClick={handleDeleteConfirm}
+                disabled={deletingRoom}
+                style={{ opacity: deletingRoom ? 0.6 : 1 }}
               >
-                Sí, eliminar sala
+                {deletingRoom ? "Eliminando..." : "Sí, eliminar sala"}
               </button>
               <button className="sr-modal-cancel" onClick={() => setRoomToDelete(null)}>
                 Cancelar

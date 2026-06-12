@@ -43,7 +43,7 @@ export default function CreateRoomForm({ onSuccess, onCancel }: CreateRoomFormPr
         />
         {error && (
           <div style={{ color: "#e05454", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
-            ⚠️ El nombre de la sala es obligatorio
+            El nombre de la sala es obligatorio
           </div>
         )}
       </div>
