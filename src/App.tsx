@@ -8,6 +8,8 @@ import DashboardPage from "./pages/DashboardPage";
 import PublicRoute from "./components/PublicRoute";
 import ProfileRoute from "./components/ProfileRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProfilePage from "./pages/ProfilePage";
+import SalaPage from "./pages/SalaPage";
 
 function App() {
   const init = useAuthStore((state) => state.init);
@@ -50,6 +52,22 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sala/:id"
+          element={
+            <ProtectedRoute>
+              <SalaPage />
             </ProtectedRoute>
           }
         />

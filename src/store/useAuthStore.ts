@@ -11,8 +11,18 @@ import {
 import { auth, googleProvider } from "../config/firebase";
 import { apiFetch, apiPost } from "../lib/api";
 
+export interface CustomUser extends User {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  title?: string;
+  bio?: string;
+  phone?: string;
+  location?: string;
+}
+
 interface AuthState {
-  user: User | null;
+  user: CustomUser | null;
   profileComplete: boolean;
   loading: boolean;
   initialized: boolean;
@@ -28,6 +38,7 @@ interface AuthState {
   ) => Promise<void>;
   logout: () => Promise<void>;
   setProfileComplete: (value: boolean) => void;
+  updateUser: (updates: Partial<CustomUser>) => void;
 }
 
 function mapFirebaseError(error: any): Error {
@@ -50,17 +61,20 @@ function mapFirebaseError(error: any): Error {
   }
 }
 
-async function fetchProfileState(): Promise<boolean> {
+async function fetchProfileState(): Promise<{ profileComplete: boolean; profile?: Partial<CustomUser> }> {
   try {
     const res = await apiFetch("/api/users/me");
     if (res.ok) {
       const data = await res.json();
-      return data.profileComplete === true;
+      if (data.profileComplete && data.user) {
+        return { profileComplete: true, profile: data.user };
+      }
+      return { profileComplete: data.profileComplete === true };
     }
   } catch (e) {
     console.error("fetchProfileState error:", e);
   }
-  return false;
+  return { profileComplete: false };
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -71,12 +85,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setProfileComplete: (value: boolean) => set({ profileComplete: value }),
 
+  updateUser: (updates) => set((state) => ({
+    user: state.user ? { ...state.user, ...updates } as CustomUser : null,
+  })),
+
   init: () => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         set({ user, loading: true });
-        const profileComplete = await fetchProfileState();
-        set({ profileComplete, loading: false, initialized: true });
+        const { profileComplete, profile } = await fetchProfileState();
+        const mergedUser = profile ? { ...user, ...profile } as CustomUser : user;
+        set({ user: mergedUser, profileComplete, loading: false, initialized: true });
       } else {
         set({ user: null, profileComplete: false, loading: false, initialized: true });
       }
@@ -88,8 +107,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const profileComplete = await fetchProfileState();
-      set({ user: result.user, profileComplete, loading: false });
+      const { profileComplete, profile } = await fetchProfileState();
+      const mergedUser = profile ? { ...result.user, ...profile } as CustomUser : result.user;
+      set({ user: mergedUser, profileComplete, loading: false });
     } catch (error: any) {
       set({ loading: false });
       throw mapFirebaseError(error);
@@ -100,8 +120,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      const profileComplete = await fetchProfileState();
-      set({ user: result.user, profileComplete, loading: false });
+      const { profileComplete, profile } = await fetchProfileState();
+      const mergedUser = profile ? { ...result.user, ...profile } as CustomUser : result.user;
+      set({ user: mergedUser, profileComplete, loading: false });
     } catch (error: any) {
       set({ loading: false });
       throw mapFirebaseError(error);
@@ -138,7 +159,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         throw new Error(data.message || "Error al registrar usuario");
       }
 
-      set({ user: firebaseUser, profileComplete: true, loading: false });
+      const mergedUser = { ...firebaseUser, firstName, lastName, username } as CustomUser;
+      set({ user: mergedUser, profileComplete: true, loading: false });
     } catch (error: any) {
       if (firebaseUser) {
         try {
