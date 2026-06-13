@@ -234,6 +234,7 @@ export default function ProfilePage() {
     if (!draft.firstName.trim()) currentErrors.firstName = "El nombre es obligatorio.";
     if (!draft.lastName.trim()) currentErrors.lastName = "El apellido es obligatorio.";
     if (draft.username.trim().length < 3) currentErrors.username = "El username debe tener al menos 3 caracteres.";
+    if (!/^[a-z0-9_]+$/.test(draft.username.trim())) currentErrors.username = "El username solo puede contener minúsculas, números y guiones bajos";
 
     if (Object.keys(currentErrors).length > 0) {
       setErrors(currentErrors);

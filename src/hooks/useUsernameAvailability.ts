@@ -29,7 +29,7 @@ export function useUsernameAvailability(
     // Solo minúsculas, números y guiones bajos, mínimo 3 caracteres
     const valid = /^[a-z0-9_]{3,}$/.test(trimmed);
     if (!valid) {
-      setError("Formato inválido");
+      setError("El username solo puede contener minúsculas, números y guiones bajos");
       return;
     }
 

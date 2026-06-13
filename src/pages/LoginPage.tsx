@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom"; // Se añade useNavigate aquí
 import { useAuthStore } from "../store/useAuthStore";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const BookOpenIcon = () => (
@@ -250,13 +251,55 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({});
+
+  const validateField = (field: "email" | "password", value: string) => {
+    if (field === "email") {
+      if (!value.trim()) return "El correo es obligatorio";
+      if (!value.trim().toLowerCase().endsWith(".edu.co")) return "Debes utilizar un correo institucional válido terminado en .edu.co";
+    }
+    if (field === "password") {
+      if (!value) return "La contraseña es obligatoria";
+    }
+    return "";
+  };
+
+  const handleBlur = (field: "email" | "password") => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateField(field, field === "email" ? email : password);
+    setFieldErrors((prev) => ({ ...prev, [field]: error || undefined }));
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    setError("");
+    if (touched.email) {
+      const err = validateField("email", value);
+      setFieldErrors((prev) => ({ ...prev, email: err || undefined }));
+    }
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    setError("");
+    if (touched.password) {
+      const err = validateField("password", value);
+      setFieldErrors((prev) => ({ ...prev, password: err || undefined }));
+    }
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const emailError = validateField("email", email);
+    const passwordError = validateField("password", password);
+    setFieldErrors({ email: emailError || undefined, password: passwordError || undefined });
+    setTouched({ email: true, password: true });
+    if (emailError || passwordError) return;
     try {
       await signInWithEmail(email, password);
-      navigate("/dashboard"); // Redirección tras inicio de sesión exitoso
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión");
     }
@@ -266,7 +309,7 @@ export default function LoginPage() {
     setError("");
     try {
       await signInWithGoogle();
-      navigate("/dashboard"); // Redirección tras inicio de sesión con Google exitoso
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión con Google");
     }
@@ -289,20 +332,23 @@ export default function LoginPage() {
 
           <form onSubmit={handleEmailLogin}>
             <div className="sr-field">
-              <label className="sr-label" htmlFor="email">Correo electrónico</label>
+              <label className="sr-label" htmlFor="email">Correo electrónico <span style={{ color: "#888", fontSize: 12, fontWeight: 400 }}>(institucional .edu.co)</span></label>
               <div className="sr-input-wrap">
                 <span className="sr-input-icon"><MailIcon /></span>
                 <input
                   id="email"
-                  className="sr-input"
+                  className={`sr-input${fieldErrors.email ? " sr-error" : ""}`}
                   type="email"
-                  placeholder="tu@email.com"
+                  placeholder="usuario@universidad.edu.co"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  onBlur={() => handleBlur("email")}
                   disabled={loading}
                 />
               </div>
+              {fieldErrors.email && (
+                <span className="sr-error-text">{fieldErrors.email}</span>
+              )}
             </div>
 
             <div className="sr-field">
@@ -311,12 +357,12 @@ export default function LoginPage() {
                 <span className="sr-input-icon"><LockIcon /></span>
                 <input
                   id="password"
-                  className="sr-input has-right-icon"
+                  className={`sr-input has-right-icon${fieldErrors.password ? " sr-error" : ""}`}
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  onBlur={() => handleBlur("password")}
                   disabled={loading}
                 />
                 <button
@@ -342,8 +388,7 @@ export default function LoginPage() {
           <div className="sr-divider">O CONTINÚA CON</div>
 
           <button className="sr-btn-google" onClick={handleGoogleLogin} disabled={loading}>
-            <GoogleIcon />
-            {loading ? "Cargando..." : "Google"}
+            {loading ? <LoadingSpinner variant="inline" /> : <><GoogleIcon /> Google</>}
           </button>
 
           {/* Ajuste estructural de clases CSS para el footer de navegación */}

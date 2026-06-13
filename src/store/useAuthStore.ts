@@ -56,6 +56,15 @@ function mapFirebaseError(error: any): Error {
       return new Error("La contraseña es demasiado débil");
     case "auth/too-many-requests":
       return new Error("Demasiados intentos. Intenta más tarde.");
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return new Error("Inicio de sesión con Google cancelado.");
+    case "auth/popup-blocked":
+      return new Error("El navegador bloqueó la ventana emergente de Google. Permite las ventanas emergentes e intenta de nuevo.");
+    case "auth/unauthorized-domain":
+      return new Error("Este dominio no está autorizado para iniciar sesión con Google.");
+    case "auth/network-request-failed":
+      return new Error("Error de conexión. Verifica tu internet e intenta de nuevo.");
     default:
       return new Error(error?.message || "Error de autenticación");
   }

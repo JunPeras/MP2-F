@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useAuthStore } from "../store/useAuthStore";
 import { useUsernameAvailability } from "../hooks/useUsernameAvailability";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const registerFormSchema = z.object({
   firstName: z.string().min(1, "El nombre es obligatorio"),
@@ -12,7 +13,9 @@ const registerFormSchema = z.object({
     .min(3, "El username debe tener al menos 3 caracteres")
     .max(20, "El username debe tener máximo 20 caracteres")
     .regex(/^[a-z0-9_]+$/, "Solo minúsculas, números y guiones bajos"),
-  email: z.string().email("Correo electrónico inválido"),
+  email: z.string().email("Correo electrónico inválido").refine((val) => val.endsWith(".edu.co"), {
+    message: "Debes utilizar un correo institucional válido terminado en .edu.co",
+  }),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
   confirmPassword: z.string().min(1, "Debes confirmar la contraseña"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -232,13 +235,45 @@ export default function RegistroPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState("");
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const { checking, available, error: usernameError } = useUsernameAvailability(form.username);
 
+  const validateField = (field: string, value: string): string => {
+    const partial = { ...form, [field]: value };
+    const result = registerFormSchema.safeParse(partial);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === field);
+      return issue?.message || "";
+    }
+    return "";
+  };
+
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    setFieldErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
     setGeneralError("");
+    if (touched[field]) {
+      const err = validateField(field, value);
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        if (err) next[field] = err;
+        else delete next[field];
+        return next;
+      });
+    } else {
+      setFieldErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const err = validateField(field, form[field as keyof typeof form]);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (err) next[field] = err;
+      else delete next[field];
+      return next;
+    });
   };
 
   const handleGoogleRegister = async () => {
@@ -308,8 +343,8 @@ export default function RegistroPage() {
 
           <form onSubmit={handleSubmit}>
             <div className="sr-row">
-              <Field id="firstName" label="Nombre" icon={<UserIcon />} placeholder="Tu nombre" field="firstName" form={form} fieldErrors={fieldErrors} handleChange={handleChange} loading={loading} />
-              <Field id="lastName" label="Apellido" icon={<UserIcon />} placeholder="Tu apellido" field="lastName" form={form} fieldErrors={fieldErrors} handleChange={handleChange} loading={loading} />
+              <Field id="firstName" label="Nombre" icon={<UserIcon />} placeholder="Tu nombre" field="firstName" form={form} fieldErrors={fieldErrors} handleChange={handleChange} onBlur={handleBlur} loading={loading} />
+              <Field id="lastName" label="Apellido" icon={<UserIcon />} placeholder="Tu apellido" field="lastName" form={form} fieldErrors={fieldErrors} handleChange={handleChange} onBlur={handleBlur} loading={loading} />
             </div>
 
             {/* Username */}
@@ -324,6 +359,7 @@ export default function RegistroPage() {
                   placeholder="usuario_123"
                   value={form.username}
                   onChange={(e) => handleChange("username", e.target.value)}
+                  onBlur={() => handleBlur("username")}
                   disabled={loading}
                 />
               </div>
@@ -336,11 +372,11 @@ export default function RegistroPage() {
               )}
             </div>
 
-            <Field id="email" label="Correo Institucional" icon={<MailIcon />} type="email" placeholder="tu@email.com" field="email" form={form} fieldErrors={fieldErrors} handleChange={handleChange} loading={loading} />
+            <Field id="email" label="Correo Institucional" icon={<MailIcon />} type="email" placeholder="usuario@universidad.edu.co" field="email" form={form} fieldErrors={fieldErrors} handleChange={handleChange} onBlur={handleBlur} loading={loading} />
 
-            <Field id="password" label="Contraseña" icon={<LockIcon />} placeholder="••••••" field="password" showToggle showVal={showPassword} onToggle={() => setShowPassword((v) => !v)} form={form} fieldErrors={fieldErrors} handleChange={handleChange} loading={loading} />
+            <Field id="password" label="Contraseña" icon={<LockIcon />} placeholder="••••••" field="password" showToggle showVal={showPassword} onToggle={() => setShowPassword((v) => !v)} form={form} fieldErrors={fieldErrors} handleChange={handleChange} onBlur={handleBlur} loading={loading} />
 
-            <Field id="confirmPassword" label="Confirmar contraseña" icon={<LockIcon />} placeholder="••••••" field="confirmPassword" showToggle showVal={showConfirm} onToggle={() => setShowConfirm((v) => !v)} form={form} fieldErrors={fieldErrors} handleChange={handleChange} loading={loading} />
+            <Field id="confirmPassword" label="Confirmar contraseña" icon={<LockIcon />} placeholder="••••••" field="confirmPassword" showToggle showVal={showConfirm} onToggle={() => setShowConfirm((v) => !v)} form={form} fieldErrors={fieldErrors} handleChange={handleChange} onBlur={handleBlur} loading={loading} />
 
             <button className="sr-btn-primary" type="submit" disabled={loading || checking}>
               {loading ? "Registrando..." : "Crear cuenta"}
@@ -349,8 +385,7 @@ export default function RegistroPage() {
 
           <div className="sr-divider">O CONTINÚA CON</div>
           <button className="sr-btn-google" onClick={handleGoogleRegister} disabled={loading}>
-            <GoogleIcon />
-            {loading ? "Cargando..." : "Google"}
+            {loading ? <LoadingSpinner variant="inline" /> : <><GoogleIcon /> Google</>}
           </button>
 
           <p className="sr-footer-text">
@@ -365,7 +400,7 @@ export default function RegistroPage() {
 // ─── Componente Field fuera de RegistroPage para mantener el foco ────────────────
 const Field = ({
   id, label, icon, type = "text", placeholder, field, showToggle = false,
-  showVal, onToggle, form, fieldErrors, handleChange, loading
+  showVal, onToggle, form, fieldErrors, handleChange, onBlur, loading
 }: any) => (
   <div className="sr-field">
     <label className="sr-label" htmlFor={id}>{label}</label>
@@ -378,6 +413,7 @@ const Field = ({
         placeholder={placeholder}
         value={form[field as keyof typeof form]}
         onChange={(e) => handleChange(field, e.target.value)}
+        onBlur={() => onBlur?.(field)}
         disabled={loading}
       />
       {showToggle && (

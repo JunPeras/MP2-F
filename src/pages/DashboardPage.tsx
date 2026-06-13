@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import CreateRoomForm from "../components/CreateRoomForm";
 import AppNavbar from "../components/AppNavbar";
+import LoadingSpinner from "../components/LoadingSpinner";
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/api";
 
 interface Room {
@@ -239,7 +240,7 @@ export default function DashboardPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
 
-  const firstName = user?.displayName?.split(" ")[0] || "Usuario";
+  const firstName = user?.firstName || user?.displayName?.split(" ")[0] || "Usuario";
 
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -402,7 +403,7 @@ export default function DashboardPage() {
           <div className="sr-section-title">Salas de estudio</div>
 
           {loadingRooms ? (
-            <div style={{ color: "#555", fontSize: 14, padding: "32px 0" }}>Cargando salas...</div>
+            <LoadingSpinner variant="section" text="Cargando salas..." />
           ) : rooms.length === 0 ? (
             <div style={{
               background: "#111",
