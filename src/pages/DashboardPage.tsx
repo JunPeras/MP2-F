@@ -302,7 +302,13 @@ export default function DashboardPage() {
         setTimeout(() => setNotification(null), 3500);
         return;
       }
+      const data = await res.json().catch(() => ({}));
+      const roomId = (data as any).roomId;
       setShowCreate(false);
+      if (roomId) {
+        navigate(`/sala/${roomId}`);
+        return;
+      }
       await fetchRooms();
       setNotification({ type: "success", message: "¡Sala creada exitosamente!" });
       setTimeout(() => setNotification(null), 3000);
