@@ -71,7 +71,7 @@ export default function CreateRoomForm({ onSuccess, onCancel }: CreateRoomFormPr
           Código de sala
         </div>
         <p style={{ color: "#888", fontSize: "12px", lineHeight: "1.4" }}>
-          Una vez creada la sala, se generará automáticamente un código único (ej: MAT-2024) que podrás compartir con tus compañeros.
+          Una vez creada la sala, se generará automáticamente un código único que podrás compartir con tus compañeros.
         </p>
       </div>
       

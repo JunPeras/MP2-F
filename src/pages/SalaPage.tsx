@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "../store/useAuthStore";
+import { apiGet } from "../lib/api";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
@@ -258,11 +260,19 @@ function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 }
 
-interface ChatMessage {
-  id: number;
+interface LocalMessage {
+  id: string | number;
   type: "msg" | "system";
   author?: string;
   text: string;
+}
+
+interface WsMessage {
+  roomId: string;
+  senderId: string;
+  senderName?: string;
+  text: string;
+  timestamp: string;
 }
 
 const MOCK_PARTICIPANTS = [
@@ -272,13 +282,13 @@ const MOCK_PARTICIPANTS = [
   { id: "4", name: "Juan Pablo" },
 ];
 
-const MOCK_MESSAGES: ChatMessage[] = [
-  { id: 1, type: "msg", author: "Maria Garcia", text: "¡Hola a todos! Empecemos con el tema de integrales" },
-  { id: 2, type: "system", text: "Juan Esteban se ha unido a la sala" },
-  { id: 3, type: "msg", author: "Juan Esteban", text: "Buenos dias compañeros" },
-  { id: 4, type: "msg", author: "Valentina Garcia", text: "Hola Juan, ¿cómo vas?" },
-  { id: 5, type: "msg", author: "Juan Pablo", text: "Excelente pregunta" },
-];
+// const MOCK_MESSAGES: LocalMessage[] = [
+//   { id: 1, type: "msg", author: "Maria Garcia", text: "¡Hola a todos! Empecemos con el tema de integrales" },
+//   { id: 2, type: "system", text: "Juan Esteban se ha unido a la sala" },
+//   { id: 3, type: "msg", author: "Juan Esteban", text: "Buenos dias compañeros" },
+//   { id: 4, type: "msg", author: "Valentina Garcia", text: "Hola Juan, ¿cómo vas?" },
+//   { id: 5, type: "msg", author: "Juan Pablo", text: "Excelente pregunta" },
+// ];
 
 export default function SalaPage() {
   const { id } = useParams<{ id: string }>();
@@ -288,12 +298,22 @@ export default function SalaPage() {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [handRaised, setHandRaised] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<LocalMessage[]>(/* MOCK_MESSAGES */ []);
   const [inputMsg, setInputMsg] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-  const roomName = "Matemáticas Avanzadas";
-  const roomCode = id ? `SR-${id.slice(-4).toUpperCase()}` : "SR-0000";
+  const [roomName, setRoomName] = useState("Sala");
+  // const roomCode = id ? `SR-${id.slice(-4).toUpperCase()}` : "SR-0000";
+
+  useEffect(() => {
+    if (!id) return;
+    apiGet(`/api/rooms/${id}`).then((res) => {
+      if (res.ok) res.json().then((data: { name?: string }) => {
+        if (data.name) setRoomName(data.name);
+      });
+    }).catch(() => {});
+  }, [id]);
 
   const currentUserName =
     user?.displayName || `${(user as any)?.firstName || ""} ${(user as any)?.lastName || ""}`.trim() || "Tú";
@@ -302,13 +322,63 @@ export default function SalaPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (!id || !user) return;
+    const WS_URL = import.meta.env.VITE_WS_URL as string;
+    if (!WS_URL) return;
+
+    const socket = io(WS_URL);
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("join-room", id);
+      socket.emit("load-messages", id);
+    });
+
+    socket.on("history-loaded", (history: WsMessage[]) => {
+      const mapped: LocalMessage[] = history.map((m) => ({
+        id: `${m.timestamp}-${m.senderId}`,
+        type: "msg",
+        author: m.senderId === user.uid ? currentUserName : m.senderId.slice(0, 8),
+        text: m.text,
+      }));
+      setMessages(mapped);
+    });
+
+    socket.on("receive-message", (msg: WsMessage) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: "msg",
+          author: msg.senderId === user.uid ? currentUserName : (msg.senderName || msg.senderId.slice(0, 8)),
+          text: msg.text,
+        },
+      ]);
+    });
+
+    return () => {
+      socket.emit("leave-room", id);
+      socket.disconnect();
+    };
+  }, [id, user?.uid]);
+
+  // const sendMessage = () => {
+  //   const text = inputMsg.trim();
+  //   if (!text) return;
+  //   setMessages((prev) => [...prev, { id: Date.now(), type: "msg", author: currentUserName, text }]);
+  //   setInputMsg("");
+  // };
   const sendMessage = () => {
     const text = inputMsg.trim();
-    if (!text) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now(), type: "msg", author: currentUserName, text },
-    ]);
+    if (!text || !user || !socketRef.current) return;
+    socketRef.current.emit("send-message", {
+      roomId: id!,
+      senderId: user.uid,
+      senderName: currentUserName,
+      text,
+      timestamp: new Date().toISOString(),
+    });
     setInputMsg("");
   };
 
@@ -331,7 +401,7 @@ export default function SalaPage() {
             </div>
             <div className="sl-room-info">
               <span className="sl-room-name">{roomName}</span>
-              <span className="sl-room-code">{roomCode}</span>
+              {/* <span className="sl-room-code">{roomCode}</span> */}
             </div>
           </div>
           <div className="sl-nav-actions">
