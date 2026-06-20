@@ -129,11 +129,35 @@ const styles = `
     padding: 14px 16px; font-size: 14px; font-weight: 600; color: #ddd;
     border-bottom: 1px solid #1a1a1a; flex-shrink: 0;
   }
-  .sr-chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; }
-  .sr-chat-msg { margin-bottom: 14px; }
-  .sr-chat-sender { font-size: 12px; font-weight: 600; color: #4caf50; margin-bottom: 3px; }
-  .sr-chat-sender.system { color: #555; font-style: italic; font-weight: 400; }
-  .sr-chat-text { font-size: 13px; color: #aaa; line-height: 1.5; }
+  .sr-chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; }
+  .sr-chat-system {
+    font-size: 12px; color: #555; text-align: center; font-style: italic;
+    margin-bottom: 14px;
+  }
+  .sr-chat-group {
+    display: flex; flex-direction: column; gap: 2px;
+    margin-bottom: 14px;
+    max-width: 100%;
+  }
+  .sr-chat-group--me { align-items: flex-end; }
+  .sr-chat-group--other { align-items: flex-start; }
+  .sr-chat-author {
+    font-size: 12px; font-weight: 600;
+    margin-bottom: 2px; padding: 0 4px;
+  }
+  .sr-chat-bubble {
+    background: #1e1e1e; color: #aaa;
+    padding: 8px 12px; border-radius: 12px;
+    font-size: 13px; line-height: 1.5;
+    max-width: 85%; word-break: break-word;
+  }
+  .sr-chat-bubble--me {
+    background: #1a3d1a; color: #e5e5e5;
+    border-bottom-right-radius: 4px;
+  }
+  .sr-chat-group--other .sr-chat-bubble {
+    border-bottom-left-radius: 4px;
+  }
 
   .sr-chat-input-area {
     display: flex; align-items: center; gap: 8px;
@@ -218,20 +242,56 @@ const PARTICIPANTS = [
   { id: "4", name: "Juan Pablo", initials: "JP" },
 ];
 
-const INITIAL_MESSAGES = [
-  { id: "1", sender: "Maria Garcia", text: "¡Hola a todos! Empecemos con el tema de integrales", system: false },
-  { id: "2", sender: "Sistema", text: "Juan Esteban se ha unido a la sala.", system: true },
-  { id: "3", sender: "Juan Esteban", text: "Buenos dias compañeros", system: false },
-  { id: "4", sender: "Valentina Garcia", text: "Hola Juan ¿cómo vas?", system: false },
-  { id: "5", sender: "Juan Pablo", text: "Excelente pregunta", system: false },
+interface ChatMessage {
+  id: string;
+  sender: string;
+  text: string;
+  system: boolean;
+  isMe: boolean;
+}
+
+const INITIAL_MESSAGES: ChatMessage[] = [
+  { id: "1", sender: "Maria Garcia", text: "¡Hola a todos! Empecemos con el tema de integrales", system: false, isMe: false },
+  { id: "2", sender: "Sistema", text: "Juan Esteban se ha unido a la sala.", system: true, isMe: false },
+  { id: "3", sender: "Juan Esteban", text: "Buenos dias compañeros", system: false, isMe: false },
+  { id: "4", sender: "Valentina Garcia", text: "Hola Juan ¿cómo vas?", system: false, isMe: false },
+  { id: "5", sender: "Juan Pablo", text: "Excelente pregunta", system: false, isMe: false },
 ];
+
+function getAuthorColor(name: string) {
+  const colors = ["#5c8aff", "#ff9f43", "#a55eea", "#ff6b81", "#26de81", "#fed330"];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function groupMessages(msgs: ChatMessage[]) {
+  const groups: { sender?: string; isMe: boolean; messages: ChatMessage[] }[] = [];
+  let current: (typeof groups)[0] | null = null;
+  for (const msg of msgs) {
+    if (msg.system) {
+      groups.push({ sender: undefined, isMe: false, messages: [msg] });
+      current = null;
+    } else {
+      if (!current || current.sender !== msg.sender || current.isMe !== !!msg.isMe) {
+        current = { sender: msg.sender, isMe: !!msg.isMe, messages: [msg] };
+        groups.push(current);
+      } else {
+        current.messages.push(msg);
+      }
+    }
+  }
+  return groups;
+}
 
 export default function StudyRoomPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [muted, setMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [chatMsg, setChatMsg] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -244,7 +304,7 @@ export default function StudyRoomPage() {
     if (!text) return;
     setMessages((prev) => [
       ...prev,
-      { id: Date.now().toString(), sender: user?.displayName || "Tú", text, system: false },
+      { id: Date.now().toString(), sender: user?.displayName || "Tú", text, system: false, isMe: true },
     ]);
     setChatMsg("");
   };
@@ -299,12 +359,32 @@ export default function StudyRoomPage() {
           <div className="sr-chat">
             <div className="sr-chat-header">Chat de la sala</div>
             <div className="sr-chat-messages">
-              {messages.map((m) => (
-                <div key={m.id} className="sr-chat-msg">
-                  <div className={`sr-chat-sender${m.system ? " system" : ""}`}>{m.sender}</div>
-                  <div className="sr-chat-text">{m.text}</div>
-                </div>
-              ))}
+              {groupMessages(messages).map((group, groupIdx) =>
+                group.messages[0].system ? (
+                  <div key={`sys-${groupIdx}`} className="sr-chat-system">
+                    {group.messages[0].text}
+                  </div>
+                ) : (
+                  <div
+                    key={`grp-${groupIdx}`}
+                    className={`sr-chat-group ${group.isMe ? "sr-chat-group--me" : "sr-chat-group--other"}`}
+                  >
+                    {!group.isMe && (
+                      <span className="sr-chat-author" style={{ color: getAuthorColor(group.messages[0].sender) }}>
+                        {group.messages[0].sender}
+                      </span>
+                    )}
+                    {group.messages.map((m) => (
+                      <div
+                        key={m.id}
+                        className={`sr-chat-bubble ${group.isMe ? "sr-chat-bubble--me" : ""}`}
+                      >
+                        {m.text}
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
               <div ref={chatEndRef} />
             </div>
             <div className="sr-chat-input-area">
