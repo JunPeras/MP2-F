@@ -10,17 +10,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "events": "^3.3.0",
     "firebase": "^12.14.0",
+    "process": "^0.11.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.16.0",
+    "simple-peer": "^9.11.1",
     "socket.io-client": "^4.8.3",
+    "util": "^0.12.5",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
+    "@types/simple-peer": "^9.11.9",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
