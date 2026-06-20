@@ -34,6 +34,24 @@ services:
     networks:
       - app-network
 
+  websocket:
+    build:
+      context: ../MP2-WS
+      dockerfile: Dockerfile.dev
+    ports:
+      - "4000:4000"
+    volumes:
+      - ../MP2-WS:/app
+      - /app/node_modules
+    env_file:
+      - ../MP2-WS/.env
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+    container_name: mp2-websocket
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
