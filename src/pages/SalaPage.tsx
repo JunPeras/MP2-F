@@ -697,26 +697,39 @@ export default function SalaPage() {
               style={!isMobile ? { gridTemplateColumns: getGridColumns(tileCount) } : undefined}
             >
               {visible.map((p, i) => {
-                const showVideo = p.isLocal
-                  ? (p.camOn && !!p.stream && p.stream.getVideoTracks().length > 0)
-                  : (p.camOn && !!p.stream && p.stream.getVideoTracks().length > 0);
+                const showVideo = p.camOn && !!p.stream && p.stream.getVideoTracks().length > 0;
+                
                 return (
                   <div key={p.id} className="sl-video-tile">
-                    {showVideo && (
-                      <video
-                        ref={p.isLocal ? localVideoRef : (el) => { if (el && p.stream) el.srcObject = p.stream; }}
-                        autoPlay
-                        muted={p.isLocal}
-                        playsInline
-                        className="sl-video-stream"
-                      />
-                    )}
+                    {/* 1. El elemento <video> SIEMPRE se renderiza. Evita que los refs queden en null.
+                      2. Usamos 'display: none/block' para controlar si se ve o no sin romper la conexión.
+                    */}
+                    <video
+                      ref={(el) => {
+                        if (!el) return;
+                        
+                        const targetStream = p.isLocal ? localStream : p.stream;
+                        
+                        if (targetStream && el.srcObject !== targetStream) {
+                          el.srcObject = targetStream;
+                        }
+                      }}
+                      autoPlay
+                      muted={p.isLocal}
+                      playsInline
+                      className="sl-video-stream"
+                      style={{ display: showVideo ? "block" : "none" }}
+                    />
+
+                    {/* El avatar solo se muestra cuando la cámara está apagada */}
                     {!showVideo && (
                       <div className="sl-video-avatar" style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
                         {getInitials(p.name)}
                       </div>
                     )}
+
                     <span className="sl-video-name">{p.name}</span>
+                    
                     <div className="sl-video-indicators">
                       <div className={`sl-video-indicator ${p.micOn ? "on" : "off"}`}>
                         {p.micOn ? <MicIcon /> : <MicOffIcon />}
@@ -728,6 +741,7 @@ export default function SalaPage() {
                   </div>
                 );
               })}
+              
               {needsMore && (
                 <div className="sl-video-tile sl-tile-more" onClick={() => setShowAllGrid(true)}>
                   <div className="sl-tile-more-inner">
