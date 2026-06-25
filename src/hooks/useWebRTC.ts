@@ -38,6 +38,7 @@ export interface PeerInfo {
 
 export function useWebRTC(socket: Socket | null, localStream: MediaStream | null) {
   const peersRef = useRef<Record<string, Peer.Instance>>({});
+  const pendingRef = useRef<Record<string, unknown[]>>({});
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [peerInfoMap, setPeerInfoMap] = useState<Map<string, PeerInfo>>(new Map());
 
@@ -50,16 +51,25 @@ export function useWebRTC(socket: Socket | null, localStream: MediaStream | null
     peer.on("stream", (stream: MediaStream) => {
       setRemoteStreams((prev) => new Map(prev).set(theirId, stream));
     });
+    peer.on("connect", () => {
+      console.log("[webrtc] connected", theirId);
+    });
     peer.on("close", () => {
       setRemoteStreams((prev) => { const next = new Map(prev); next.delete(theirId); return next; });
     });
-    peer.on("error", (err) => console.error("Peer error", theirId, err));
+    peer.on("error", (err) => console.warn("[webrtc] peer error", theirId, (err as Error)?.message ?? err));
     peersRef.current[theirId] = peer;
+
+    const queued = pendingRef.current[theirId];
+    if (queued && queued.length) {
+      queued.splice(0).forEach((d) => peer.signal(d as Peer.SignalData));
+    }
   }, [socket, localStream]);
 
   const destroyPeer = useCallback((id: string) => {
     const peer = peersRef.current[id];
     if (peer) { try { peer.destroy(); } catch (e) { void e; } delete peersRef.current[id]; }
+    delete pendingRef.current[id];
     setRemoteStreams((prev) => { const next = new Map(prev); next.delete(id); return next; });
     setPeerInfoMap((prev) => { const next = new Map(prev); next.delete(id); return next; });
   }, []);
@@ -76,16 +86,17 @@ export function useWebRTC(socket: Socket | null, localStream: MediaStream | null
 
     const onIntroduction = (clients: { socketId: string; uid: string; displayName: string }[]) => {
       clients.forEach((c) => {
-        if (c.socketId === socket.id || peersRef.current[c.socketId]) return;
+        if (c.socketId === socket.id) return;
         setPeerInfoMap((prev) => new Map(prev).set(c.socketId, { uid: c.uid, displayName: c.displayName }));
-        createPeer(c.socketId, true);
+        if (!peersRef.current[c.socketId]) {
+          createPeer(c.socketId, true);
+        }
       });
     };
 
     const onNewUser = (client: { socketId: string; uid: string; displayName: string }) => {
-      if (client.socketId === socket.id || peersRef.current[client.socketId]) return;
+      if (client.socketId === socket.id) return;
       setPeerInfoMap((prev) => new Map(prev).set(client.socketId, { uid: client.uid, displayName: client.displayName }));
-      createPeer(client.socketId, false);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,8 +104,8 @@ export function useWebRTC(socket: Socket | null, localStream: MediaStream | null
       if (to !== socket.id) return;
       const existing = peersRef.current[from];
       if (existing) { existing.signal(data); return; }
+      (pendingRef.current[from] ||= []).push(data);
       createPeer(from, false);
-      peersRef.current[from]?.signal(data);
     };
 
     socket.on("introduction", onIntroduction);
@@ -114,6 +125,7 @@ export function useWebRTC(socket: Socket | null, localStream: MediaStream | null
     return () => {
       Object.values(peersRef.current).forEach((p) => { try { p.destroy(); } catch (e) { void e; } });
       peersRef.current = {};
+      pendingRef.current = {};
     };
   }, []);
 

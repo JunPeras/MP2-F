@@ -543,10 +543,19 @@ export default function SalaPage() {
         roomId: id,
         uid: user.uid,
         displayName: currentUserName,
-        micOn: false,
-        camOn: false,
+        micOn,
+        camOn,
       });
       s.emit("load-messages", id);
+    });
+
+    s.on("connect_error", (err: Error) => {
+      console.error("[ws] connect_error", err?.message);
+      show("error", "Error de conexión", "No se pudo conectar al servidor de señalización. Revisa tu red e inténtalo de nuevo.");
+    });
+    s.on("connect_timeout", () => {
+      console.error("[ws] connect_timeout");
+      show("error", "Tiempo de espera agotado", "El servidor de señalización no responde.");
     });
 
     s.on("history-loaded", (history: WsMessage[]) => {
