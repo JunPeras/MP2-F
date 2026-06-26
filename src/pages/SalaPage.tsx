@@ -6,6 +6,7 @@ import { apiGet } from "../lib/api";
 import { useUserMedia } from "../hooks/useUserMedia";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { useRoomParticipants } from "../hooks/useRoomParticipants";
+import { useScreenShare } from "../hooks/useScreenShare";
 import { useToast, ToastContainer } from "../components/Toast";
 
 const styles = `
@@ -131,6 +132,24 @@ const styles = `
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
+  .sl-video-grid.sharing-mode {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+  .sl-video-tile--sharer {
+    border: 2px solid #4caf50;
+    background: #061206;
+  }
+  .sl-screen-badge {
+    position: absolute; top: 14px; left: 14px;
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(76, 175, 80, 0.92);
+    color: #fff;
+    padding: 5px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    z-index: 3;
+  }
+  .sl-screen-badge svg { width: 14px; height: 14px; }
   .sl-video-avatar {
     width: 72px; height: 72px; border-radius: 50%;
     background: #1e4d1e;
@@ -490,8 +509,22 @@ export default function SalaPage() {
 
   const { stream: localStream, micOn, camOn, toggleMic, toggleCam } = useUserMedia();
   const [socket, setSocket] = useState<Socket | null>(null);
-  const { remoteStreams, peerInfoMap } = useWebRTC(socket, localStream);
-  const participants = useRoomParticipants(socket, user?.uid ?? "", currentUserName, localStream, micOn, camOn, remoteStreams, peerInfoMap);
+  const { remoteStreams, peerInfoMap, setVideoSource } = useWebRTC(socket, localStream);
+  const { sharing, screenStream, startSharing, stopSharing } = useScreenShare(socket, user?.uid ?? null, id ?? null);
+  const remoteScreenStreams = remoteStreams;
+  const participants = useRoomParticipants(
+    socket,
+    user?.uid ?? "",
+    currentUserName,
+    localStream,
+    micOn,
+    camOn,
+    sharing,
+    screenStream,
+    remoteStreams,
+    remoteScreenStreams,
+    peerInfoMap
+  );
   const { toasts, show, dismiss } = useToast();
 
   const showDeviceError = (message: string) => {
@@ -604,6 +637,23 @@ export default function SalaPage() {
     }
   }, [localStream]);
 
+  // Replace video source on peers when screen share starts/stops
+  useEffect(() => {
+    if (sharing && screenStream) {
+      setVideoSource(screenStream);
+    } else if (!sharing) {
+      setVideoSource(localStream);
+    }
+  }, [sharing, screenStream, localStream, setVideoSource]);
+
+  const handleToggleShare = async () => {
+    if (sharing) {
+      stopSharing();
+    } else {
+      await startSharing();
+    }
+  };
+
   const sendMessage = () => {
     const text = inputMsg.trim();
     if (!text || !user || !socket) return;
@@ -627,10 +677,13 @@ export default function SalaPage() {
     }
   };
 
-  const needsMore = !showAllGrid && participants.length > MAX_GRID;
-  const visible = needsMore ? participants.slice(0, MAX_GRID - 1) : participants;
+  const activeSharer = participants.find((p) => p.sharing) || null;
+  const needsMore = !showAllGrid && !activeSharer && participants.length > MAX_GRID;
+  const visible = activeSharer
+    ? [activeSharer]
+    : (needsMore ? participants.slice(0, MAX_GRID - 1) : participants);
   const hiddenCount = participants.length - visible.length;
-  const tileCount = visible.length + (needsMore ? 1 : 0);
+  const tileCount = visible.length + (!activeSharer && needsMore ? 1 : 0);
 
   return (
     <>
@@ -693,23 +746,23 @@ export default function SalaPage() {
               <button className="sl-collapse-btn" onClick={() => setShowAllGrid(false)}>Colapsar ↑</button>
             )}
             <div
-              className={`sl-video-grid${showAllGrid ? " expanded" : ""}`}
-              style={!isMobile ? { gridTemplateColumns: getGridColumns(tileCount) } : undefined}
+              className={`sl-video-grid${showAllGrid ? " expanded" : ""}${activeSharer ? " sharing-mode" : ""}`}
+              style={!isMobile && !activeSharer ? { gridTemplateColumns: getGridColumns(tileCount) } : undefined}
             >
               {visible.map((p, i) => {
-                const showVideo = p.camOn && !!p.stream && p.stream.getVideoTracks().length > 0;
-                
+                const isSharer = activeSharer?.id === p.id;
+                const showVideo = isSharer
+                  ? !!(p.screenStream && p.screenStream.getVideoTracks().length > 0)
+                  : (p.camOn && !!p.stream && p.stream.getVideoTracks().length > 0);
+                const targetStream = isSharer
+                  ? (p.isLocal ? p.screenStream : p.stream)
+                  : (p.isLocal ? localStream : p.stream);
+
                 return (
-                  <div key={p.id} className="sl-video-tile">
-                    {/* 1. El elemento <video> SIEMPRE se renderiza. Evita que los refs queden en null.
-                      2. Usamos 'display: none/block' para controlar si se ve o no sin romper la conexión.
-                    */}
+                  <div key={p.id} className={`sl-video-tile${isSharer ? " sl-video-tile--sharer" : ""}`}>
                     <video
                       ref={(el) => {
                         if (!el) return;
-                        
-                        const targetStream = p.isLocal ? localStream : p.stream;
-                        
                         if (targetStream && el.srcObject !== targetStream) {
                           el.srcObject = targetStream;
                         }
@@ -721,28 +774,34 @@ export default function SalaPage() {
                       style={{ display: showVideo ? "block" : "none" }}
                     />
 
-                    {/* El avatar solo se muestra cuando la cámara está apagada */}
                     {!showVideo && (
                       <div className="sl-video-avatar" style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
                         {getInitials(p.name)}
                       </div>
                     )}
 
+                    {isSharer && (
+                      <div className="sl-screen-badge">
+                        <ShareIcon />
+                        <span>Compartiendo pantalla</span>
+                      </div>
+                    )}
+
                     <span className="sl-video-name">{p.name}</span>
-                    
+
                     <div className="sl-video-indicators">
                       <div className={`sl-video-indicator ${p.micOn ? "on" : "off"}`}>
                         {p.micOn ? <MicIcon /> : <MicOffIcon />}
                       </div>
-                      <div className={`sl-video-indicator ${p.camOn ? "on" : "off"}`}>
-                        {p.camOn ? <VideoIcon /> : <VideoOffIcon />}
+                      <div className={`sl-video-indicator ${isSharer ? "on" : p.camOn ? "on" : "off"}`}>
+                        {isSharer ? <ShareIcon /> : (p.camOn ? <VideoIcon /> : <VideoOffIcon />)}
                       </div>
                     </div>
                   </div>
                 );
               })}
-              
-              {needsMore && (
+
+              {!activeSharer && needsMore && (
                 <div className="sl-video-tile sl-tile-more" onClick={() => setShowAllGrid(true)}>
                   <div className="sl-tile-more-inner">
                     <span className="sl-tile-more-count">+{hiddenCount}</span>
@@ -771,7 +830,13 @@ export default function SalaPage() {
               }}>
                 {camOn ? <VideoIcon /> : <VideoOffIcon />}
               </button>
-              <button className="sl-ctrl-btn" title="Compartir pantalla"><ShareIcon /></button>
+              <button
+                className={`sl-ctrl-btn${sharing ? " active" : ""}`}
+                title={sharing ? "Detener compartición" : "Compartir pantalla"}
+                onClick={handleToggleShare}
+              >
+                <ShareIcon />
+              </button>
               <button className={`sl-ctrl-btn${handRaised ? " active" : ""}`} title={handRaised ? "Bajar la mano" : "Levantar la mano"} onClick={() => setHandRaised((v) => !v)}>
                 <HandIcon />
               </button>

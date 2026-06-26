@@ -38,8 +38,13 @@ export interface PeerInfo {
 
 export function useWebRTC(socket: Socket | null, localStream: MediaStream | null) {
   const peersRef = useRef<Record<string, Peer.Instance>>({});
+  const localStreamRef = useRef<MediaStream | null>(localStream);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [peerInfoMap, setPeerInfoMap] = useState<Map<string, PeerInfo>>(new Map());
+
+  useEffect(() => {
+    localStreamRef.current = localStream;
+  }, [localStream]);
 
   const createPeer = useCallback((theirId: string, initiator: boolean) => {
     if (!socket || peersRef.current[theirId]) return;
@@ -62,6 +67,32 @@ export function useWebRTC(socket: Socket | null, localStream: MediaStream | null
     if (peer) { try { peer.destroy(); } catch (e) { void e; } delete peersRef.current[id]; }
     setRemoteStreams((prev) => { const next = new Map(prev); next.delete(id); return next; });
     setPeerInfoMap((prev) => { const next = new Map(prev); next.delete(id); return next; });
+  }, []);
+
+  const setVideoSource = useCallback((newStream: MediaStream | null) => {
+    const newVideoTrack = newStream?.getVideoTracks()[0] || null;
+    const audioTrack = localStreamRef.current?.getAudioTracks()[0] || null;
+    const syntheticStream = new MediaStream();
+    if (newVideoTrack) syntheticStream.addTrack(newVideoTrack);
+    if (audioTrack) syntheticStream.addTrack(audioTrack);
+
+    Object.values(peersRef.current).forEach((peer) => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const senders = (peer as any)._pc?.getSenders?.() || [];
+        const videoSender = senders.find((s: RTCRtpSender) => s.track?.kind === "video");
+        if (videoSender) {
+          videoSender.replaceTrack(newVideoTrack).catch((err: unknown) => {
+            console.error("replaceTrack error", err);
+          });
+        } else {
+          try { peer.removeStream(localStreamRef.current as MediaStream); } catch (e) { void e; }
+          try { peer.addStream(syntheticStream); } catch (e) { void e; }
+        }
+      } catch (e) {
+        void e;
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -117,5 +148,5 @@ export function useWebRTC(socket: Socket | null, localStream: MediaStream | null
     };
   }, []);
 
-  return { remoteStreams, peerInfoMap };
+  return { remoteStreams, peerInfoMap, setVideoSource };
 }

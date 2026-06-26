@@ -7,7 +7,9 @@ export interface RoomParticipant {
   isLocal: boolean;
   micOn: boolean;
   camOn: boolean;
+  sharing: boolean;
   stream?: MediaStream;
+  screenStream?: MediaStream;
 }
 
 export function useRoomParticipants(
@@ -17,7 +19,10 @@ export function useRoomParticipants(
   localStream: MediaStream | null,
   micOn: boolean,
   camOn: boolean,
+  localSharing: boolean,
+  localScreenStream: MediaStream | null,
   remoteStreams: Map<string, MediaStream>,
+  remoteScreenStreams: Map<string, MediaStream>,
   peerInfoMap: Map<string, { uid: string; displayName: string }>
 ) {
   const [participants, setParticipants] = useState<RoomParticipant[]>([]);
@@ -25,36 +30,67 @@ export function useRoomParticipants(
   useEffect(() => {
     setParticipants((prev) => {
       const others = prev.filter((p) => !p.isLocal);
-      const local: RoomParticipant = { id: localUid, name: `${localName} (Tú)`, isLocal: true, micOn, camOn, stream: localStream || undefined };
+      const local: RoomParticipant = {
+        id: localUid,
+        name: `${localName} (Tú)`,
+        isLocal: true,
+        micOn,
+        camOn,
+        sharing: localSharing,
+        stream: localStream || undefined,
+        screenStream: localScreenStream || undefined,
+      };
       return [local, ...others];
     });
-  }, [localUid, localName, localStream, micOn, camOn]);
+  }, [localUid, localName, localStream, micOn, camOn, localSharing, localScreenStream]);
 
   useEffect(() => {
     setParticipants((prev) => prev.map((p) => {
       if (p.isLocal) return p;
       let stream: MediaStream | undefined;
-      peerInfoMap.forEach((info, sid) => { if (info.uid === p.id) stream = remoteStreams.get(sid); });
-      return stream ? { ...p, stream } : p;
+      let screenStream: MediaStream | undefined;
+      peerInfoMap.forEach((info, sid) => {
+        if (info.uid === p.id) {
+          stream = remoteStreams.get(sid);
+          screenStream = remoteScreenStreams.get(sid);
+        }
+      });
+      return { ...p, stream, screenStream };
     }));
-  }, [remoteStreams, peerInfoMap]);
+  }, [remoteStreams, remoteScreenStreams, peerInfoMap]);
 
   useEffect(() => {
     if (!socket) return;
 
-    const onExistingUsers = (users: { uid: string; displayName: string; micOn?: boolean; camOn?: boolean }[]) => {
+    const onExistingUsers = (users: { uid: string; displayName: string; micOn?: boolean; camOn?: boolean; screenSharing?: boolean }[]) => {
       setParticipants((prev) => {
         const local = prev.find((p) => p.isLocal);
         const remotes = users
           .filter((u) => u.uid !== localUid)
-          .map((u) => ({ id: u.uid, name: u.displayName, isLocal: false, micOn: u.micOn ?? false, camOn: u.camOn ?? false }));
+          .map((u) => ({
+            id: u.uid,
+            name: u.displayName,
+            isLocal: false,
+            micOn: u.micOn ?? false,
+            camOn: u.camOn ?? false,
+            sharing: u.screenSharing ?? false,
+          }));
         return local ? [local, ...remotes] : remotes;
       });
     };
 
-    const onUserJoined = ({ uid, displayName, micOn, camOn }: { uid: string; displayName: string; micOn?: boolean; camOn?: boolean }) => {
+    const onUserJoined = ({ uid, displayName, micOn, camOn, screenSharing }: { uid: string; displayName: string; micOn?: boolean; camOn?: boolean; screenSharing?: boolean }) => {
       if (uid === localUid) return;
-      setParticipants((prev) => prev.some((p) => p.id === uid) ? prev : [...prev, { id: uid, name: displayName, isLocal: false, micOn: micOn ?? false, camOn: camOn ?? false }]);
+      setParticipants((prev) => prev.some((p) => p.id === uid)
+        ? prev
+        : [...prev, {
+            id: uid,
+            name: displayName,
+            isLocal: false,
+            micOn: micOn ?? false,
+            camOn: camOn ?? false,
+            sharing: screenSharing ?? false,
+          }]);
     };
 
     const onUserLeft = ({ uid }: { uid: string }) => {
@@ -65,16 +101,22 @@ export function useRoomParticipants(
       setParticipants((prev) => prev.map((p) => (p.id === uid ? { ...p, micOn: m, camOn: c } : p)));
     };
 
+    const onScreenShareState = ({ uid, sharing: s }: { uid: string; sharing: boolean }) => {
+      setParticipants((prev) => prev.map((p) => (p.id === uid ? { ...p, sharing: s } : p)));
+    };
+
     socket.on("existing-users", onExistingUsers);
     socket.on("user-joined", onUserJoined);
     socket.on("user-left", onUserLeft);
     socket.on("user-media-state", onMediaState);
+    socket.on("user-screen-share-state", onScreenShareState);
 
     return () => {
       socket.off("existing-users", onExistingUsers);
       socket.off("user-joined", onUserJoined);
       socket.off("user-left", onUserLeft);
       socket.off("user-media-state", onMediaState);
+      socket.off("user-screen-share-state", onScreenShareState);
     };
   }, [socket, localUid]);
 
