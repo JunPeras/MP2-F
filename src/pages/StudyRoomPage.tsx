@@ -5,6 +5,7 @@ import { useAuthStore } from "../store/useAuthStore";
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; }
   body { background: #0a0a0a; overflow: hidden; }
 
   .sr-room {
@@ -35,7 +36,7 @@ const styles = `
   }
   .sr-room-title-wrap { flex: 1; }
   .sr-room-title { font-size: 15px; font-weight: 600; color: #fff; }
-  .sr-room-subtitle { font-size: 12px; color: #555; }
+  .sr-room-subtitle { font-size: 12px; color: #999; }
 
   .sr-room-nav-actions { display: flex; gap: 8px; margin-left: auto; }
   .sr-icon-btn {
@@ -131,7 +132,7 @@ const styles = `
   }
   .sr-chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; }
   .sr-chat-system {
-    font-size: 12px; color: #555; text-align: center; font-style: italic;
+    font-size: 12px; color: #999; text-align: center; font-style: italic;
     margin-bottom: 14px;
   }
   .sr-chat-group {
@@ -331,7 +332,7 @@ export default function StudyRoomPage() {
         </nav>
 
         {/* Body */}
-        <div className="sr-room-body">
+        <main className="sr-room-body">
           {/* Participants sidebar */}
           <div className="sr-participants">
             <div className="sr-participants-title">Participantes ({PARTICIPANTS.length})</div>
@@ -398,7 +399,7 @@ export default function StudyRoomPage() {
               <button className="sr-chat-send" onClick={sendMessage}><SendIcon /></button>
             </div>
           </div>
-        </div>
+        </main>
 
         {/* Controls */}
         <div className="sr-controls">

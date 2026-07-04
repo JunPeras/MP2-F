@@ -42,6 +42,7 @@ const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; }
 
   .sr-root {
     min-height: 100vh;
@@ -93,7 +94,7 @@ const styles = `
   }
   .sr-card-subtitle {
     font-size: 14px;
-    color: #666;
+    color: #999;
     text-align: center;
     margin-bottom: 28px;
   }
@@ -116,7 +117,7 @@ const styles = `
   .sr-input-icon {
     position: absolute;
     left: 13px;
-    color: #555;
+    color: #999;
     display: flex;
     align-items: center;
     pointer-events: none;
@@ -144,10 +145,12 @@ const styles = `
     background: none;
     border: none;
     cursor: pointer;
-    color: #555;
+    color: #999;
     display: flex;
     align-items: center;
-    padding: 2px;
+    padding: 4px;
+    min-width: 24px;
+    min-height: 24px;
     transition: color 0.2s;
   }
   .sr-eye-btn:hover { color: #888; }
@@ -228,7 +231,7 @@ const styles = `
   .sr-footer-text {
     text-align: center;
     font-size: 14px;
-    color: #555;
+    color: #999;
   }
   .sr-footer-text a { color: #4caf50; text-decoration: none; }
   .sr-footer-text a:hover { text-decoration: underline; }
@@ -318,9 +321,9 @@ export default function LoginPage() {
   return (
     <>
       <style>{styles}</style>
-      <div className="sr-root">
+      <main className="sr-root">
         <div className="sr-logo">
-          <div className="sr-logo-icon"><BookOpenIcon /></div>
+          <div className="sr-logo-icon" aria-hidden="true"><BookOpenIcon /></div>
           <span className="sr-logo-text">StudyRoom</span>
         </div>
 
@@ -328,13 +331,13 @@ export default function LoginPage() {
           <h1 className="sr-card-title">Iniciar Sesión</h1>
           <p className="sr-card-subtitle">Ingresa tus credenciales para acceder a tu cuenta</p>
 
-          {error && <div className="sr-general-error">{error}</div>}
+          {error && <div className="sr-general-error" role="alert">{error}</div>}
 
           <form onSubmit={handleEmailLogin}>
             <div className="sr-field">
               <label className="sr-label" htmlFor="email">Correo electrónico <span style={{ color: "#888", fontSize: 12, fontWeight: 400 }}>(institucional .edu.co)</span></label>
               <div className="sr-input-wrap">
-                <span className="sr-input-icon"><MailIcon /></span>
+                <span className="sr-input-icon" aria-hidden="true"><MailIcon /></span>
                 <input
                   id="email"
                   className={`sr-input${fieldErrors.email ? " sr-error" : ""}`}
@@ -344,17 +347,19 @@ export default function LoginPage() {
                   onChange={(e) => handleEmailChange(e.target.value)}
                   onBlur={() => handleBlur("email")}
                   disabled={loading}
+                  aria-invalid={!!fieldErrors.email}
+                  aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 />
               </div>
               {fieldErrors.email && (
-                <span className="sr-error-text">{fieldErrors.email}</span>
+                <span id="email-error" className="sr-error-text">{fieldErrors.email}</span>
               )}
             </div>
 
             <div className="sr-field">
               <label className="sr-label" htmlFor="password">Contraseña</label>
               <div className="sr-input-wrap">
-                <span className="sr-input-icon"><LockIcon /></span>
+                <span className="sr-input-icon" aria-hidden="true"><LockIcon /></span>
                 <input
                   id="password"
                   className={`sr-input has-right-icon${fieldErrors.password ? " sr-error" : ""}`}
@@ -364,12 +369,13 @@ export default function LoginPage() {
                   onChange={(e) => handlePasswordChange(e.target.value)}
                   onBlur={() => handleBlur("password")}
                   disabled={loading}
+                  aria-invalid={!!fieldErrors.password}
                 />
                 <button
                   type="button"
                   className="sr-eye-btn"
                   onClick={() => setShowPassword((v) => !v)}
-                  tabIndex={-1}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
@@ -396,7 +402,7 @@ export default function LoginPage() {
             ¿No tienes cuenta? <Link to="/registro">Regístrate</Link>
           </p>
         </div>
-      </div>
+      </main>
     </>
   );
 }

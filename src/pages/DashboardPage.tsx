@@ -1,10 +1,11 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import CreateRoomForm from "../components/CreateRoomForm";
 import AppNavbar from "../components/AppNavbar";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/api";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface Room {
   id: string;
@@ -19,6 +20,7 @@ interface Room {
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; }
 
   body { background: #0a0a0a; }
 
@@ -33,7 +35,7 @@ const styles = `
   .sr-dash-body { padding: 40px 32px; max-width: 1100px; margin: 0 auto; }
 
   .sr-dash-heading { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 6px; }
-  .sr-dash-subheading { font-size: 14px; color: #666; margin-bottom: 28px; }
+  .sr-dash-subheading { font-size: 14px; color: #999; margin-bottom: 28px; }
 
   /* ── Toolbar ── */
   .sr-toolbar {
@@ -42,7 +44,7 @@ const styles = `
   .sr-search-wrap {
     flex: 1; position: relative; display: flex; align-items: center;
   }
-  .sr-search-icon { position: absolute; left: 13px; color: #555; display: flex; align-items: center; pointer-events: none; }
+  .sr-search-icon { position: absolute; left: 13px; color: #999; display: flex; align-items: center; pointer-events: none; }
   .sr-search-input {
     width: 100%;
     background: #111; border: 1px solid #1e1e1e; border-radius: 8px;
@@ -112,19 +114,19 @@ const styles = `
   .sr-dropdown-item:hover { background: #252525; color: #fff; }
   .sr-dropdown-item.danger { color: #ef5350; }
   .sr-dropdown-item.danger:hover { background: #2c1414; }
-  .sr-room-desc { font-size: 13px; color: #666; margin-bottom: 14px; line-height: 1.4; }
+  .sr-room-desc { font-size: 13px; color: #999; margin-bottom: 14px; line-height: 1.4; }
 
   .sr-room-meta {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 12px;
   }
   .sr-room-members { font-size: 13px; color: #888; }
-  .sr-room-code { font-size: 13px; color: #555; }
+  .sr-room-code { font-size: 13px; color: #999; }
 
   .sr-room-footer {
     display: flex; align-items: center; justify-content: space-between;
   }
-  .sr-room-creator { font-size: 12px; color: #555; }
+  .sr-room-creator { font-size: 12px; color: #999; }
 
   .sr-btn-enter {
     background: #4caf50; border: none; border-radius: 6px;
@@ -250,6 +252,16 @@ export default function DashboardPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingRoom, setDeletingRoom] = useState(false);
+
+  const joinBackdropRef = useRef<HTMLDivElement>(null);
+  const createBackdropRef = useRef<HTMLDivElement>(null);
+  const editBackdropRef = useRef<HTMLDivElement>(null);
+  const deleteBackdropRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(joinBackdropRef, showJoin);
+  useFocusTrap(createBackdropRef, showCreate);
+  useFocusTrap(editBackdropRef, roomToEdit !== null);
+  useFocusTrap(deleteBackdropRef, roomToDelete !== null);
 
   const fetchRooms = async () => {
     setLoadingRooms(true);
@@ -382,17 +394,18 @@ export default function DashboardPage() {
         <AppNavbar showDropdown />
 
         {/* Body */}
-        <div className="sr-dash-body">
+        <main className="sr-dash-body">
           <h1 className="sr-dash-heading">Bienvenido, {firstName}</h1>
           <p className="sr-dash-subheading">Encuentra una sala o crea una nueva para empezar a estudiar</p>
 
           <div className="sr-toolbar">
             <div className="sr-search-wrap">
-              <span className="sr-search-icon"><SearchIcon /></span>
+              <span className="sr-search-icon" aria-hidden="true"><SearchIcon /></span>
               <input
                 className="sr-search-input"
                 type="text"
                 placeholder="Buscar salas..."
+                aria-label="Buscar salas"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -443,9 +456,9 @@ export default function DashboardPage() {
                     <button
                       className="sr-dots-btn"
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === room.id ? null : room.id); }}
-                      title="Opciones"
+                      aria-label={`Opciones de ${room.name}`}
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
                       </svg>
                     </button>
@@ -478,17 +491,21 @@ export default function DashboardPage() {
                 </div>
               ))}
               {filteredRooms.length === 0 && (
-                <p style={{ color: "#555", fontSize: 14 }}>No se encontraron salas que coincidan con la búsqueda.</p>
+                <p style={{ color: "#999", fontSize: 14 }}>No se encontraron salas que coincidan con la búsqueda.</p>
               )}
             </div>
           )}
 
-        </div>
+        </main>
       </div>
 
       {/* Join Modal */}
       {showJoin && (
-        <div className="sr-modal-backdrop">
+        <div
+          className="sr-modal-backdrop"
+          ref={joinBackdropRef}
+          onKeyDown={(e) => { if (e.key === "Escape") closeJoinModal(); }}
+        >
           <form className="sr-modal" onSubmit={(e) => { e.preventDefault(); handleJoin(); }}>
             <div className="sr-modal-title">Unirse con código</div>
             <div className="sr-modal-sub">Ingresa el código de la sala para unirte</div>
@@ -519,8 +536,12 @@ export default function DashboardPage() {
       )}
 
       {showCreate && (
-        <div className="sr-modal-backdrop">
-          <CreateRoomForm 
+        <div
+          className="sr-modal-backdrop"
+          ref={createBackdropRef}
+          onKeyDown={(e) => { if (e.key === "Escape") setShowCreate(false); }}
+        >
+          <CreateRoomForm
             onSuccess={handleRoomCreatedSuccess} 
             onCancel={() => setShowCreate(false)} 
           />
@@ -535,7 +556,11 @@ export default function DashboardPage() {
       )}
 
       {roomToEdit && (
-        <div className="sr-modal-backdrop">
+        <div
+          className="sr-modal-backdrop"
+          ref={editBackdropRef}
+          onKeyDown={(e) => { if (e.key === "Escape") { setRoomToEdit(null); setEditError(false); } }}
+        >
           <form
             className="sr-modal"
             onClick={(e) => e.stopPropagation()}
@@ -583,7 +608,11 @@ export default function DashboardPage() {
       )}
 
       {roomToDelete && (
-        <div className="sr-modal-backdrop">
+        <div
+          className="sr-modal-backdrop"
+          ref={deleteBackdropRef}
+          onKeyDown={(e) => { if (e.key === "Escape") setRoomToDelete(null); }}
+        >
           <div className="sr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sr-modal-title" style={{ fontSize: "18px", color: "#f44336", marginBottom: "12px" }}>
               ¿Estás seguro de eliminar esta sala?

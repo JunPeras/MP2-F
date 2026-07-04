@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import AppNavbar from "../components/AppNavbar";
 import { apiPut, apiDelete } from "../lib/api";
+import { useFontSize } from "../context/FontSizeContext";
+import type { FontSize } from "../context/FontSizeContext";
+import { useTheme } from "../context/ThemeContext";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; }
   body { background: #0a0a0a; }
 
   .sr-profile {
@@ -31,7 +36,7 @@ const styles = `
   }
   .sr-hero-info { flex: 1; }
   .sr-hero-name { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-  .sr-hero-title { font-size: 14px; color: #666; }
+  .sr-hero-title { font-size: 14px; color: #999; }
   .sr-hero-username { color: #4caf50; font-weight: 500; margin-left: 4px; }
   
   .sr-edit-btn {
@@ -46,7 +51,7 @@ const styles = `
   .sr-stat { flex: 1; text-align: center; }
   .sr-stat + .sr-stat { border-left: 1px solid #1a1a1a; }
   .sr-stat-value { font-size: 22px; font-weight: 700; color: #4caf50; margin-bottom: 3px; }
-  .sr-stat-label { font-size: 12px; color: #666; }
+  .sr-stat-label { font-size: 12px; color: #999; }
 
   /* ── Info cards ── */
   .sr-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -59,11 +64,11 @@ const styles = `
   .sr-info-text { font-size: 14px; color: #777; line-height: 1.6; }
 
   /* Estados vacíos estéticos */
-  .sr-empty-placeholder { font-style: italic; color: #555; font-size: 13px; }
+  .sr-empty-placeholder { font-style: italic; color: #999; font-size: 13px; }
 
   .sr-contact-item { margin-bottom: 14px; }
   .sr-contact-item:last-child { margin-bottom: 0; }
-  .sr-contact-label { font-size: 12px; color: #666; margin-bottom: 3px; font-weight: 500; }
+  .sr-contact-label { font-size: 12px; color: #999; margin-bottom: 3px; font-weight: 500; }
   .sr-contact-value { font-size: 14px; color: #ccc; }
 
   /* ── Edit form ── */
@@ -129,6 +134,31 @@ const styles = `
   }
   .sr-confirm-delete-btn:hover { background: #d32f2f; }
 
+  /* ── Preferencias ── */
+  .sr-prefs-card {
+    background: #111; border: 1px solid #1e1e1e; border-radius: 14px;
+    padding: 22px 24px; margin-top: 16px;
+  }
+  .sr-prefs-section-title {
+    font-size: 15px; font-weight: 600; color: #ddd; margin-bottom: 14px;
+  }
+  .sr-prefs-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  .sr-prefs-label {
+    font-size: 13px; color: #999; font-weight: 500;
+  }
+  .sr-font-size-group { display: flex; gap: 8px; }
+  .sr-font-size-btn {
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+    padding: 7px 16px; font-size: 13px; font-family: 'Outfit', sans-serif;
+    color: #aaa; cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .sr-font-size-btn:hover { background: #222; border-color: #3a3a3a; }
+  .sr-font-size-btn.active {
+    border-color: #4caf50; color: #4caf50; background: #0f1f0f;
+  }
+
   /* ── Feedback ── */
   .sr-toast {
     position: fixed;
@@ -174,13 +204,27 @@ interface ProfileData {
   isGoogleUser: boolean;
 }
 
+const FONT_SIZE_OPTIONS: { value: FontSize; label: string }[] = [
+  { value: "normal", label: "Normal" },
+  { value: "grande", label: "Grande" },
+  { value: "muy-grande", label: "Muy grande" },
+];
+
 export default function ProfilePage() {
   const { user, logout, updateUser } = useAuthStore();
   const navigate = useNavigate();
+  const { fontSize, setFontSize } = useFontSize();
+  const { theme, setTheme } = useTheme();
 
   const [editing, setEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const deleteModalRef = useRef<HTMLDivElement>(null);
+  const discardModalRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(deleteModalRef, showDeleteModal);
+  useFocusTrap(discardModalRef, showDiscardModal);
 
   const [toast, setToast] = useState<{
     type: "success" | "error";
@@ -285,7 +329,7 @@ export default function ProfilePage() {
         <div className="sr-profile">
           <AppNavbar showBack />
 
-          <div className="sr-profile-body">
+          <main className="sr-profile-body">
             {/* ── Hero Card) ── */}
             <div className="sr-hero-card">
               <div className="sr-hero-top">
@@ -300,8 +344,9 @@ export default function ProfilePage() {
                   {editing ? (
                     <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
                       <div style={{ flex: 1 }}>
-                        <label className="sr-label">Nombre</label>
+                        <label className="sr-label" htmlFor="profile-first-name">Nombre</label>
                         <input
+                          id="profile-first-name"
                           className="sr-input"
                           value={draft.firstName}
                           onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))}
@@ -309,8 +354,9 @@ export default function ProfilePage() {
                         {errors.firstName && <span className="sr-error-text">{errors.firstName}</span>}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label className="sr-label">Apellido</label>
+                        <label className="sr-label" htmlFor="profile-last-name">Apellido</label>
                         <input
+                          id="profile-last-name"
                           className="sr-input"
                           value={draft.lastName}
                           onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))}
@@ -325,8 +371,9 @@ export default function ProfilePage() {
                   {editing ? (
                     <div style={{ display: "flex", gap: "12px" }}>
                       <div style={{ flex: 1 }}>
-                        <label className="sr-label">Nombre de Usuario (Username)</label>
+                        <label className="sr-label" htmlFor="profile-username">Nombre de Usuario (Username)</label>
                         <input
+                          id="profile-username"
                           className="sr-input"
                           value={draft.username}
                           onChange={(e) => setDraft((p) => ({ ...p, username: e.target.value }))}
@@ -334,8 +381,9 @@ export default function ProfilePage() {
                         {errors.username && <span className="sr-error-text"> {errors.username}</span>}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label className="sr-label">Título Institucional</label>
+                        <label className="sr-label" htmlFor="profile-title">Título Institucional</label>
                         <input
+                          id="profile-title"
                           className="sr-input"
                           placeholder="Ej: Estudiante de Ingeniería"
                           value={draft.title}
@@ -395,53 +443,106 @@ export default function ProfilePage() {
 
                   {/* Campo: Correo */}
                   <div className="sr-contact-item">
-                    <div className="sr-contact-label">Correo</div>
                     {editing ? (
-                      <input
-                        className="sr-input"
-                        value={draft.email}
-                        disabled={profile.isGoogleUser} // Candado si viene de Google OAuth
-                        onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))}
-                      />
+                      <>
+                        <label className="sr-contact-label" htmlFor="profile-email" style={{ display: "block" }}>Correo</label>
+                        <input
+                          id="profile-email"
+                          className="sr-input"
+                          value={draft.email}
+                          disabled={profile.isGoogleUser}
+                          onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))}
+                        />
+                      </>
                     ) : (
-                      <div className="sr-contact-value">{profile.email}</div>
+                      <>
+                        <div className="sr-contact-label">Correo</div>
+                        <div className="sr-contact-value">{profile.email}</div>
+                      </>
                     )}
                   </div>
 
                   {/* Campo: Teléfono */}
                   <div className="sr-contact-item">
-                    <div className="sr-contact-label">Teléfono</div>
                     {editing ? (
-                      <input
-                        className="sr-input"
-                        placeholder="+57 300 000 0000"
-                        value={draft.phone}
-                        onChange={(e) => setDraft((p) => ({ ...p, phone: e.target.value }))}
-                      />
+                      <>
+                        <label className="sr-contact-label" htmlFor="profile-phone" style={{ display: "block" }}>Teléfono</label>
+                        <input
+                          id="profile-phone"
+                          className="sr-input"
+                          placeholder="+57 300 000 0000"
+                          value={draft.phone}
+                          onChange={(e) => setDraft((p) => ({ ...p, phone: e.target.value }))}
+                        />
+                      </>
                     ) : (
-                      <div className="sr-contact-value">
-                        {profile.phone || <span className="sr-empty-placeholder">No registrado</span>}
-                      </div>
+                      <>
+                        <div className="sr-contact-label">Teléfono</div>
+                        <div className="sr-contact-value">
+                          {profile.phone || <span className="sr-empty-placeholder">No registrado</span>}
+                        </div>
+                      </>
                     )}
                   </div>
 
                   {/* Campo: Ubicación */}
                   <div className="sr-contact-item">
-                    <div className="sr-contact-label">Ubicación</div>
                     {editing ? (
-                      <input
-                        className="sr-input"
-                        placeholder="Ciudad, Campus o Dirección"
-                        value={draft.location}
-                        onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))}
-                      />
+                      <>
+                        <label className="sr-contact-label" htmlFor="profile-location" style={{ display: "block" }}>Ubicación</label>
+                        <input
+                          id="profile-location"
+                          className="sr-input"
+                          placeholder="Ciudad, Campus o Dirección"
+                          value={draft.location}
+                          onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))}
+                        />
+                      </>
                     ) : (
-                      <div className="sr-contact-value">
-                        {profile.location || <span className="sr-empty-placeholder">No especificada</span>}
-                      </div>
+                      <>
+                        <div className="sr-contact-label">Ubicación</div>
+                        <div className="sr-contact-value">
+                          {profile.location || <span className="sr-empty-placeholder">No especificada</span>}
+                        </div>
+                      </>
                     )}
                   </div>
 
+                </div>
+              </div>
+            </div>
+
+            {/* ── Preferencias de visualización ── */}
+            <div className="sr-prefs-card">
+              <div className="sr-prefs-section-title">Preferencias de visualización</div>
+              <div className="sr-prefs-row">
+                <span className="sr-prefs-label">Tamaño de fuente</span>
+                <div className="sr-font-size-group" role="group" aria-label="Tamaño de fuente">
+                  {FONT_SIZE_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      className={`sr-font-size-btn${fontSize === value ? " active" : ""}`}
+                      onClick={() => setFontSize(value)}
+                      aria-pressed={fontSize === value}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="sr-prefs-row" style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #1e1e1e" }}>
+                <span className="sr-prefs-label">Tema de color</span>
+                <div className="sr-font-size-group" role="group" aria-label="Tema de color">
+                  {(["dark", "light"] as const).map((t) => (
+                    <button
+                      key={t}
+                      className={`sr-font-size-btn${theme === t ? " active" : ""}`}
+                      onClick={() => setTheme(t)}
+                      aria-pressed={theme === t}
+                    >
+                      {t === "dark" ? "Oscuro" : "Claro"}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -467,11 +568,15 @@ export default function ProfilePage() {
                 Eliminar Cuenta
               </button>
             )}
-          </div>
+          </main>
         </div>
 
         {showDeleteModal && (
-          <div className="sr-modal-overlay">
+          <div
+            className="sr-modal-overlay"
+            ref={deleteModalRef}
+            onKeyDown={(e) => { if (e.key === "Escape") setShowDeleteModal(false); }}
+          >
             <div className="sr-modal">
               <h3 className="sr-modal-title">¿Estás completamente seguro?</h3>
               <p className="sr-modal-desc">
@@ -497,7 +602,11 @@ export default function ProfilePage() {
         )}
 
         {showDiscardModal && (
-          <div className="sr-modal-overlay">
+          <div
+            className="sr-modal-overlay"
+            ref={discardModalRef}
+            onKeyDown={(e) => { if (e.key === "Escape") setShowDiscardModal(false); }}
+          >
             <div className="sr-modal">
               <h3 className="sr-modal-title">
                 ¿Descartar cambios?

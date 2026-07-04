@@ -82,6 +82,7 @@ const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; }
 
   .sr-root {
     min-height: 100vh;
@@ -121,7 +122,7 @@ const styles = `
   }
 
   .sr-card-title { font-size: 26px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 6px; }
-  .sr-card-subtitle { font-size: 14px; color: #666; text-align: center; margin-bottom: 24px; }
+  .sr-card-subtitle { font-size: 14px; color: #999; text-align: center; margin-bottom: 24px; }
 
   .sr-row { display: flex; gap: 14px; }
   .sr-row .sr-field { flex: 1; }
@@ -130,7 +131,7 @@ const styles = `
   .sr-label { display: block; font-size: 14px; color: #ccc; margin-bottom: 7px; font-weight: 500; }
 
   .sr-input-wrap { position: relative; display: flex; align-items: center; }
-  .sr-input-icon { position: absolute; left: 13px; color: #555; display: flex; align-items: center; pointer-events: none; }
+  .sr-input-icon { position: absolute; left: 13px; color: #999; display: flex; align-items: center; pointer-events: none; }
 
   .sr-input {
     width: 100%;
@@ -152,7 +153,8 @@ const styles = `
   .sr-eye-btn {
     position: absolute; right: 12px;
     background: none; border: none; cursor: pointer;
-    color: #555; display: flex; align-items: center; padding: 2px;
+    color: #999; display: flex; align-items: center; padding: 4px;
+    min-width: 24px; min-height: 24px;
     transition: color 0.2s;
   }
   .sr-eye-btn:hover { color: #888; }
@@ -219,7 +221,7 @@ const styles = `
   .sr-btn-google:hover:not(:disabled) { background: #222; border-color: #383838; }
   .sr-btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
 
-  .sr-footer-text { text-align: center; font-size: 14px; color: #555; }
+  .sr-footer-text { text-align: center; font-size: 14px; color: #999; }
   .sr-footer-text a { color: #4caf50; text-decoration: none; }
   .sr-footer-text a:hover { text-decoration: underline; }
 `;
@@ -325,9 +327,9 @@ export default function RegistroPage() {
   return (
     <>
       <style>{styles}</style>
-      <div className="sr-root">
+      <main className="sr-root">
         <div className="sr-logo">
-          <div className="sr-logo-icon">
+          <div className="sr-logo-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
             </svg>
@@ -339,7 +341,7 @@ export default function RegistroPage() {
           <h1 className="sr-card-title">Crear Cuenta</h1>
           <p className="sr-card-subtitle">Regístrate para empezar a colaborar</p>
 
-          {generalError && <div className="sr-general-error">{generalError}</div>}
+          {generalError && <div className="sr-general-error" role="alert">{generalError}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="sr-row">
@@ -351,7 +353,7 @@ export default function RegistroPage() {
             <div className="sr-field">
               <label className="sr-label" htmlFor="username">Nombre de usuario</label>
               <div className="sr-input-wrap">
-                <span className="sr-input-icon"><AtIcon /></span>
+                <span className="sr-input-icon" aria-hidden="true"><AtIcon /></span>
                 <input
                   id="username"
                   className={`sr-input${fieldErrors.username || usernameError ? " sr-input-error" : ""}`}
@@ -361,14 +363,16 @@ export default function RegistroPage() {
                   onChange={(e) => handleChange("username", e.target.value)}
                   onBlur={() => handleBlur("username")}
                   disabled={loading}
+                  aria-invalid={!!(fieldErrors.username || usernameError)}
+                  aria-describedby={(fieldErrors.username || usernameError) ? "username-error" : available === true ? "username-ok" : undefined}
                 />
               </div>
               {checking && <span className="sr-field-msg checking">Verificando disponibilidad...</span>}
               {available === true && !usernameError && !fieldErrors.username && (
-                <span className="sr-field-msg success"><CheckCircleIcon />Username disponible</span>
+                <span id="username-ok" className="sr-field-msg success"><CheckCircleIcon />Username disponible</span>
               )}
               {(fieldErrors.username || usernameError) && (
-                <span className="sr-field-msg error"><XCircleIcon />{fieldErrors.username || usernameError}</span>
+                <span id="username-error" className="sr-field-msg error"><XCircleIcon />{fieldErrors.username || usernameError}</span>
               )}
             </div>
 
@@ -392,7 +396,7 @@ export default function RegistroPage() {
             ¿Ya tienes una cuenta? <Link to="/login">Inicia sesión</Link>
           </p>
         </div>
-      </div>
+      </main>
     </>
   );
 }
@@ -405,7 +409,7 @@ const Field = ({
   <div className="sr-field">
     <label className="sr-label" htmlFor={id}>{label}</label>
     <div className="sr-input-wrap">
-      <span className="sr-input-icon">{icon}</span>
+      <span className="sr-input-icon" aria-hidden="true">{icon}</span>
       <input
         id={id}
         className={`sr-input${showToggle ? " has-right-icon" : ""}${fieldErrors[field] ? " sr-input-error" : ""}`}
@@ -415,15 +419,22 @@ const Field = ({
         onChange={(e) => handleChange(field, e.target.value)}
         onBlur={() => onBlur?.(field)}
         disabled={loading}
+        aria-invalid={!!fieldErrors[field]}
+        aria-describedby={fieldErrors[field] ? `${id}-error` : undefined}
       />
       {showToggle && (
-        <button type="button" className="sr-eye-btn" onClick={onToggle} tabIndex={-1}>
+        <button
+          type="button"
+          className="sr-eye-btn"
+          onClick={onToggle}
+          aria-label={showVal ? "Ocultar contraseña" : "Mostrar contraseña"}
+        >
           {showVal ? <EyeOffIcon /> : <EyeIcon />}
         </button>
       )}
     </div>
     {fieldErrors[field] && (
-      <span className="sr-field-msg error"><XCircleIcon />{fieldErrors[field]}</span>
+      <span id={`${id}-error`} className="sr-field-msg error"><XCircleIcon />{fieldErrors[field]}</span>
     )}
   </div>
 );

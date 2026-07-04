@@ -11,6 +11,7 @@ import { useToast, ToastContainer } from "../components/Toast";
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; }
   body { background: #0a0a0a; }
 
   .sl-root {
@@ -42,7 +43,7 @@ const styles = `
   }
   .sl-room-info { display: flex; flex-direction: column; gap: 1px; }
   .sl-room-name { font-size: 16px; font-weight: 700; color: #fff; line-height: 1; }
-  .sl-room-code { font-size: 12px; color: #555; }
+  .sl-room-code { font-size: 12px; color: #999; }
   .sl-copy-link-btn {
     background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px;
     padding: 3px 8px; font-size: 11px; color: #888; cursor: pointer;
@@ -117,7 +118,7 @@ const styles = `
   .sl-tile-more-count {
     font-size: 32px; font-weight: 700; color: #4caf50; line-height: 1;
   }
-  .sl-tile-more-label { font-size: 12px; color: #666; }
+  .sl-tile-more-label { font-size: 12px; color: #999; }
   .sl-collapse-btn {
     position: absolute; top: 10px; right: 10px; z-index: 5;
     background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px;
@@ -197,7 +198,7 @@ const styles = `
   .sl-chat-messages::-webkit-scrollbar { width: 4px; }
   .sl-chat-messages::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
   .sl-chat-system {
-    font-size: 12px; color: #555; text-align: center; font-style: italic;
+    font-size: 12px; color: #999; text-align: center; font-style: italic;
     margin-bottom: 14px;
   }
   .sl-chat-group {
@@ -638,9 +639,9 @@ export default function SalaPage() {
       <div className="sl-root">
         <nav className="sl-nav">
           <div className="sl-nav-left">
-            <button className="sl-back-btn" onClick={() => navigate("/dashboard")}><ArrowLeftIcon /></button>
+            <button className="sl-back-btn" onClick={() => navigate("/dashboard")} aria-label="Volver al dashboard"><ArrowLeftIcon /></button>
             <div className="sl-nav-logo">
-              <div className="sl-nav-logo-icon"><BookOpenIcon /></div>
+              <div className="sl-nav-logo-icon" aria-hidden="true"><BookOpenIcon /></div>
             </div>
             <div className="sl-room-info">
               <span className="sl-room-name">{roomName}</span>
@@ -653,13 +654,13 @@ export default function SalaPage() {
             </div>
           </div>
           <div className="sl-nav-actions">
-            <button className="sl-nav-icon-btn" title="Participantes" onClick={() => setShowParticipants((v) => !v)}>
+            <button className="sl-nav-icon-btn" aria-label="Participantes" onClick={() => setShowParticipants((v) => !v)}>
               <UsersIcon />
             </button>
-            <button className="sl-nav-icon-btn active" title="Chat" onClick={() => setShowChat((v) => !v)}>
+            <button className="sl-nav-icon-btn active" aria-label="Chat" onClick={() => setShowChat((v) => !v)}>
               <ChatIcon />
             </button>
-            <button className="sl-nav-icon-btn desktop-only" title="Configuración">
+            <button className="sl-nav-icon-btn desktop-only" aria-label="Configuración">
               <SettingsIcon />
             </button>
           </div>
@@ -670,7 +671,7 @@ export default function SalaPage() {
           onClick={() => { setShowParticipants(false); setShowChat(false); }}
         />
 
-        <div className="sl-body">
+        <main className="sl-body">
           <aside className={`sl-sidebar-left ${showParticipants ? 'open' : ''}`}>
             <div className="sl-sidebar-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               Participantes ({participants.length})
@@ -753,7 +754,7 @@ export default function SalaPage() {
             </div>
 
             <div className="sl-controls">
-              <button className={`sl-ctrl-btn${micOn ? " active" : ""}`} title={micOn ? "Silenciar" : "Activar micrófono"} onClick={() => {
+              <button className={`sl-ctrl-btn${micOn ? " active" : ""}`} aria-label={micOn ? "Silenciar micrófono" : "Activar micrófono"} onClick={() => {
                 if (!micOn && (localStream?.getAudioTracks().length ?? 0) === 0) {
                   showDeviceError("Micrófono no disponible. Verifica que esté conectado y los permisos del navegador.");
                   return;
@@ -762,7 +763,7 @@ export default function SalaPage() {
               }}>
                 {micOn ? <MicIcon /> : <MicOffIcon />}
               </button>
-              <button className={`sl-ctrl-btn${camOn ? " active" : ""}`} title={camOn ? "Apagar cámara" : "Activar cámara"} onClick={() => {
+              <button className={`sl-ctrl-btn${camOn ? " active" : ""}`} aria-label={camOn ? "Apagar cámara" : "Activar cámara"} onClick={() => {
                 if (!camOn && (localStream?.getVideoTracks().length ?? 0) === 0) {
                   showDeviceError("Cámara no disponible. Verifica que esté conectada y los permisos del navegador.");
                   return;
@@ -771,11 +772,11 @@ export default function SalaPage() {
               }}>
                 {camOn ? <VideoIcon /> : <VideoOffIcon />}
               </button>
-              <button className="sl-ctrl-btn" title="Compartir pantalla"><ShareIcon /></button>
-              <button className={`sl-ctrl-btn${handRaised ? " active" : ""}`} title={handRaised ? "Bajar la mano" : "Levantar la mano"} onClick={() => setHandRaised((v) => !v)}>
+              <button className="sl-ctrl-btn" aria-label="Compartir pantalla"><ShareIcon /></button>
+              <button className={`sl-ctrl-btn${handRaised ? " active" : ""}`} aria-label={handRaised ? "Bajar la mano" : "Levantar la mano"} onClick={() => setHandRaised((v) => !v)}>
                 <HandIcon />
               </button>
-              <button className="sl-ctrl-btn danger" title="Salir de la sala" onClick={() => navigate("/dashboard")}>
+              <button className="sl-ctrl-btn danger" aria-label="Salir de la sala" onClick={() => navigate("/dashboard")}>
                 <PhoneOffIcon />
               </button>
             </div>
@@ -805,14 +806,15 @@ export default function SalaPage() {
               <input
                 className="sl-chat-input"
                 placeholder="Escribe un mensaje..."
+                aria-label="Mensaje de chat"
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               />
-              <button className="sl-chat-send-btn" onClick={sendMessage} title="Enviar"><SendIcon /></button>
+              <button className="sl-chat-send-btn" onClick={sendMessage} aria-label="Enviar mensaje"><SendIcon /></button>
             </div>
           </aside>
-        </div>
+        </main>
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </>

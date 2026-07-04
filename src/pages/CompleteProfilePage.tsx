@@ -8,6 +8,7 @@ import { useUsernameAvailability } from "../hooks/useUsernameAvailability";
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  *:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; }
 
   .sr-root {
     min-height: 100vh;
@@ -37,12 +38,12 @@ const styles = `
     max-width: 400px;
   }
   .sr-card-title { font-size: 26px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 6px; }
-  .sr-card-subtitle { font-size: 14px; color: #666; text-align: center; margin-bottom: 28px; }
+  .sr-card-subtitle { font-size: 14px; color: #999; text-align: center; margin-bottom: 28px; }
 
   .sr-field { margin-bottom: 20px; }
   .sr-label { display: block; font-size: 14px; color: #ccc; margin-bottom: 7px; font-weight: 500; }
   .sr-input-wrap { position: relative; display: flex; align-items: center; }
-  .sr-input-icon { position: absolute; left: 13px; color: #555; display: flex; align-items: center; pointer-events: none; }
+  .sr-input-icon { position: absolute; left: 13px; color: #999; display: flex; align-items: center; pointer-events: none; }
   .sr-input {
     width: 100%;
     background: #1a1a1a;
@@ -145,9 +146,9 @@ export default function CompleteProfilePage() {
   return (
     <>
       <style>{styles}</style>
-      <div className="sr-root">
+      <main className="sr-root">
         <div className="sr-logo">
-          <div className="sr-logo-icon"><BookOpenIcon /></div>
+          <div className="sr-logo-icon" aria-hidden="true"><BookOpenIcon /></div>
           <span className="sr-logo-text">StudyRoom</span>
         </div>
 
@@ -155,13 +156,13 @@ export default function CompleteProfilePage() {
           <h1 className="sr-card-title">Finaliza tu perfil</h1>
           <p className="sr-card-subtitle">Regístrate para empezar a colaborar</p>
 
-          {generalError && <div className="sr-general-error">{generalError}</div>}
+          {generalError && <div className="sr-general-error" role="alert">{generalError}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="sr-field">
               <label className="sr-label" htmlFor="username">Nombre de usuario</label>
               <div className="sr-input-wrap">
-                <span className="sr-input-icon"><AtIcon /></span>
+                <span className="sr-input-icon" aria-hidden="true"><AtIcon /></span>
                 <input
                   id="username"
                   className={`sr-input${fieldError || usernameError ? " sr-input-error" : ""}`}
@@ -170,18 +171,20 @@ export default function CompleteProfilePage() {
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); setFieldError(""); }}
                   disabled={loading}
+                  aria-invalid={!!(fieldError || usernameError)}
+                  aria-describedby={(fieldError || usernameError) ? "username-error" : available === true ? "username-ok" : undefined}
                 />
               </div>
               {checking && <span className="sr-field-msg checking">Verificando disponibilidad...</span>}
               {available === true && !usernameError && !fieldError && (
-                <span className="sr-field-msg success">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span id="username-ok" className="sr-field-msg success">
+                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                   Username disponible
                 </span>
               )}
               {(fieldError || usernameError) && (
-                <span className="sr-field-msg error">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                <span id="username-error" className="sr-field-msg error">
+                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
                   {fieldError || usernameError}
                 </span>
               )}
@@ -201,7 +204,7 @@ export default function CompleteProfilePage() {
             Cerrar sesión
           </button>
         </div>
-      </div>
+      </main>
     </>
   );
 }
