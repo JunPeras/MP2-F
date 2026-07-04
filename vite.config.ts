@@ -15,7 +15,12 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["events", "util", "process"],
+    include: ["events", "util", "process", "simple-peer"],
+    esbuildOptions: {
+      define: {
+        global: "globalThis",
+      },
+    },
   },
   server: {
     proxy: {

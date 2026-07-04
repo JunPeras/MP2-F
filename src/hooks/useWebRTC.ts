@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Socket } from "socket.io-client";
-import Peer from "simple-peer/simplepeer.min.js";
+import Peer from "simple-peer";
 
 const iceServerUrl = import.meta.env.VITE_ICE_SERVER_URL as string | undefined;
 const iceServerUsername = import.meta.env.VITE_ICE_SERVER_USERNAME as string | undefined;
