@@ -86,7 +86,7 @@ async function fetchProfileState(): Promise<{ profileComplete: boolean; profile?
   return { profileComplete: false };
 }
 
-export const useAuthStore = create<AuthState>((set,get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   profileComplete: false,
   loading: false,
