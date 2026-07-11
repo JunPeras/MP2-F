@@ -98,12 +98,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     user: state.user ? { ...state.user, ...updates } as CustomUser : null,
   })),
 
-  init: () => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        set({ user, loading: true });
+init: () => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const currentState = useAuthStore.getState();
+        if (currentState.initialized && currentState.loading) {
+          return;
+        }
+        set({ loading: true });
         const { profileComplete, profile } = await fetchProfileState();
-        const mergedUser = profile ? { ...user, ...profile } as CustomUser : user;
+        const mergedUser = profile ? { ...firebaseUser, ...profile } as CustomUser : firebaseUser;
+        
         set({ user: mergedUser, profileComplete, loading: false, initialized: true });
       } else {
         set({ user: null, profileComplete: false, loading: false, initialized: true });
